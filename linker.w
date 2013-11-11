@@ -16,7 +16,7 @@
 \centerline{Yellow Rabbit}
 \vskip 80pt
 
-@* Скелетная программы.
+@* Общая схема программы.
 @c
 @<Включение заголовочных файлов@>@;
 @h
@@ -63,10 +63,12 @@ static struct argp argp = {options, parse_opt, NULL, argp_program_doc};
 @<Собственные...@>=
 typedef struct _Arguments {
 	char output_filename[FILENAME_MAX]; /* Имя файла с тектом */
+	char **objnames;		    /* Имена объектных файлов
+					 objnames[?] == NULL --> конец имен*/
 } Arguments;
 
 @ @<Глобальные...@>=
-static Arguments config = { {0} };
+static Arguments config = { {0}, NULL, };
 
 
 @ Задачей данного простого парсера является заполнение структуры |Arguments| из указанных
@@ -82,20 +84,28 @@ parse_opt(int key, char *arg, struct argp_state *state) {
 			return(ARGP_ERR_UNKNOWN);
 		strncpy(arguments->output_filename, arg, FILENAME_MAX - 1);
 		break;
+	case ARGP_KEY_ARG:
+		/* Имена объектных файлов */
+		arguments->objnames = &state->argv[state->next - 1];
+		/* Останавливаем разбор параметров */
+		state->next = state->argc;
+		break;
 	default:
 		break;
 		return(ARGP_ERR_UNKNOWN);
 	}
 	return(0);
 }
-@ Допускается не указывать временной интервал для повтора, но все остальные параметры
-должны быть указаны.
-@<Разобрать ком...@>=
+@ @<Разобрать ком...@>=
 	argp_parse(&argp, argc, argv, 0, 0, &config);@|
 	/* Проверка параметров */
-	if(strlen(config.output_filename) == 0) {
+	if (strlen(config.output_filename) == 0) {
 		printerr("No output filename specified\n");
 		return(1);
+	}
+	if (config.objnames == NULL) {
+		printerr("No input filenames specified\n");
+		return(2);
 	}
 
 @ @<Включение ...@>=
