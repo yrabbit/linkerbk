@@ -82,6 +82,7 @@ static void
 handle_one_file(FILE *fresult, FILE *fobj) {
 	BinaryBlock obj_header;
 	int first_byte;
+	unsigned int block_len;
 	
 	while (!feof(fobj)) {
 		/* Ищем начало блока */
@@ -91,10 +92,14 @@ handle_one_file(FILE *fresult, FILE *fobj) {
 		} while (first_byte != 1);
 
 		/* Читаем заголовок */
+		ungetc(first_byte, fobj);
 		if (fread(&obj_header, sizeof(BinaryBlock), 1, fobj) != 1) {
 			printerr("IO error\n");
 			break;
 		}
+		if (obj_header.zero != 0) continue;
+		block_len = obj_header.len[0] + obj_header.len[1]*256;
+		printf("Block found.\n Length:%d\n", block_len);
 	}
 end:;
 }
