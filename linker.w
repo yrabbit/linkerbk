@@ -27,7 +27,21 @@ int
 main(int argc, char *argv[])
 {
 	@<Данные программы@>@;
+	FILE *fobj;
+	int cur_input;
+	const char *objname;
+
 	@<Разобрать командную строку@>@;
+	/* Поочередно обрабатываем все заданные объектные файлы */
+	while ((objname = config.objnames[cur_input++]) != NULL) {
+		fobj = fopen(objname,"r");
+		if (fobj== NULL) {
+			printerr("Can't open ");
+			printerr(objname);
+			return(ERR_CANTOPEN);
+		}
+		fclose(fobj);
+	}
 }
 
 @ @<Данные программы@>=
@@ -41,7 +55,7 @@ main(int argc, char *argv[])
 @d VERSION "0.6"
 
 @ @<Константы@>=
-const char *argp_program_version = "link, " VERSION;
+const char *argp_program_version = "linkbk, " VERSION;
 const char *argp_program_bug_address = "<yellowrabbit@@bk.ru>";
 
 @ @<Глобальн...@>=
@@ -96,16 +110,19 @@ parse_opt(int key, char *arg, struct argp_state *state) {
 	}
 	return(0);
 }
-@ @<Разобрать ком...@>=
+@ 
+@d ERR_SYNTAX 1
+@d ERR_CANTOPEN 2
+@<Разобрать ком...@>=
 	argp_parse(&argp, argc, argv, 0, 0, &config);@|
 	/* Проверка параметров */
 	if (strlen(config.output_filename) == 0) {
 		printerr("No output filename specified\n");
-		return(1);
+		return(ERR_SYNTAX);
 	}
 	if (config.objnames == NULL) {
 		printerr("No input filenames specified\n");
-		return(2);
+		return(ERR_SYNTAX);
 	}
 
 @ @<Включение ...@>=

@@ -6,7 +6,7 @@ CFLAGS=-Wall -g
 CFLAGS+=-I /usr/local/include
 LDFLAGS=-L/usr/local/lib -largp 
 
-all: linker.pdf link
+all: linker.pdf linkbk
 
 linker.pdf: linker.ps
 	gs -sDEVICE=pdfwrite -sOutputFile=linker.pdf -dBATCH -dNOPAUSE linker.ps
@@ -20,8 +20,8 @@ linker.dvi: linker.tex
 linker.tex: linker.w
 	$(CWEAVE) linker.w
 
-link: linker.c
-	CC $(CFLAGS) $(LDFLAGS) linker.c -o link
+linkbk: linker.c
+	CC $(CFLAGS) $(LDFLAGS) linker.c -o linkbk
 
 linker.c: linker.w
 	$(CTANGLE) linker.w
