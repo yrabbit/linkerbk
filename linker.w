@@ -5,9 +5,9 @@
 
 \datethis
 
-@*Введение.
+@* Введение.
 \vskip 120pt
-\centerline{\twentycmcsc link}
+\centerline{\twentycmcsc linkbk}
 \vskip 20pt
 \centerline{Простейший линковщик объектных файлов ассемблера MACRO-11}
 \vskip 2pt
@@ -27,26 +27,80 @@ int
 main(int argc, char *argv[])
 {
 	@<Данные программы@>@;
-	FILE *fobj;
 	int cur_input;
 	const char *objname;
 
 	@<Разобрать командную строку@>@;
+	@<Создаём файл результата@>@;
+
 	/* Поочередно обрабатываем все заданные объектные файлы */
 	while ((objname = config.objnames[cur_input++]) != NULL) {
-		fobj = fopen(objname,"r");
-		if (fobj== NULL) {
-			printerr("Can't open ");
-			printerr(objname);
-			return(ERR_CANTOPEN);
-		}
+		@<Открыть объектный файл@>@;
+		handle_one_file(fresult, fobj);
 		fclose(fobj);
 	}
+	fclose(fresult);
 }
 
 @ @<Данные программы@>=
+FILE *fobj, *fresult;
 
+@ @<Открыть объектный файл@>=
+	fobj = fopen(objname,"r");
+	if (fobj== NULL) {
+		printerr("Can't open ");
+		printerr(objname);
+		return(ERR_CANTOPEN);
+	}
+
+@ @<Создаём файл результата@>=
+	fresult = fopen(config.output_filename, "w");
+	if (fresult == NULL) {
+		printerr("Can't create ");
+		printerr(config.output_filename);
+		return(ERR_CANTCREATE);
+	}
+
+@* Обработка объектного файла.
+
+@ Структура объектного файла.
+Объектный файл состоит из блоков, которые начинаются заголовком
+ |BinaryBlock|, собственно данных длиной |len - 4| и байта 
+контрольной суммы (0 - сумма всех байт).  Между блоками может быть произвольное
+количество нулевых байт.
 @ @<Собственные типы данных@>=
+typedef struct _BinaryBlock {
+	uint8_t	one;	/* must be 1 */
+	uint8_t	zero;	/* must be 0 */
+	uint8_t len[2]; /* length of block */
+} BinaryBlock;
+
+
+@ Обработать один объектный файл.
+@c
+static void
+handle_one_file(FILE *fresult, FILE *fobj) {
+	BinaryBlock obj_header;
+	int first_byte;
+	
+	while (!feof(fobj)) {
+		/* Ищем начало блока */
+		do {
+			first_byte = fgetc(fobj);
+			if (first_byte == EOF) goto end;
+		} while (first_byte != 1);
+
+		/* Читаем заголовок */
+		if (fread(&obj_header, sizeof(BinaryBlock), 1, fobj) != 1) {
+			printerr("IO error\n");
+			break;
+		}
+	}
+end:;
+}
+
+@ @<Глобальные...@>=
+static void handle_one_file(FILE *, FILE *);
 
 @* Разбор параметров командной строки.
 
@@ -111,8 +165,9 @@ parse_opt(int key, char *arg, struct argp_state *state) {
 	return(0);
 }
 @ 
-@d ERR_SYNTAX 1
-@d ERR_CANTOPEN 2
+@d ERR_SYNTAX		1
+@d ERR_CANTOPEN		2
+@d ERR_CANTCREATE	3
 @<Разобрать ком...@>=
 	argp_parse(&argp, argc, argv, 0, 0, &config);@|
 	/* Проверка параметров */
