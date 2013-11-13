@@ -1,4 +1,4 @@
-\input cwebmac-ru
+\input cwebmac	%-ru
 
 \def\version{0.1}
 \font\twentycmcsc=cmcsc10 at 20 truept
@@ -27,37 +27,40 @@ int
 main(int argc, char *argv[])
 {
 	@<Данные программы@>@;
-	int cur_input;
 	const char *objname;
 
 	@<Разобрать командную строку@>@;
 	@<Создаём файл результата@>@;
 
 	/* Поочередно обрабатываем все заданные объектные файлы */
-	while ((objname = config.objnames[cur_input++]) != NULL) {
+	cur_input = 0;
+	while ((objname = config.objnames[cur_input]) != NULL) {
 		@<Открыть объектный файл@>@;
 		handle_one_file(fresult, fobj);
 		fclose(fobj);
+		++cur_input;
 	}
 	fclose(fresult);
+	return(0);
 }
 
+@ Номер текущего обрабатываемого объектного файла.
+@<Глобальные переменные@>=
+static int cur_input;
 @ @<Данные программы@>=
 FILE *fobj, *fresult;
 
 @ @<Открыть объектный файл@>=
 	fobj = fopen(objname,"r");
 	if (fobj== NULL) {
-		printerr("Can't open ");
-		printerr(objname);
+		PRINTERR("Can't open %s\n", objname);
 		return(ERR_CANTOPEN);
 	}
 
 @ @<Создаём файл результата@>=
 	fresult = fopen(config.output_filename, "w");
 	if (fresult == NULL) {
-		printerr("Can't create ");
-		printerr(config.output_filename);
+		PRINTERR("Can't create %s\n", config.output_filename);
 		return(ERR_CANTCREATE);
 	}
 
@@ -94,15 +97,25 @@ handle_one_file(FILE *fresult, FILE *fobj) {
 		/* Читаем заголовок */
 		ungetc(first_byte, fobj);
 		if (fread(&obj_header, sizeof(BinaryBlock), 1, fobj) != 1) {
-			printerr("IO error\n");
+			PRINTERR("IO error: %s\n",config.objnames[cur_input]);
 			break;
 		}
 		if (obj_header.zero != 0) continue;
-		block_len = obj_header.len[0] + obj_header.len[1]*256;
-		printf("Block found.\n Length:%d\n", block_len);
+		block_len = obj_header.len[0] + obj_header.len[1] * 256 - 4;
+		PRINTVERB(2, "Binary block found. Length:%d\n", block_len);
+
+		/* Читаем тело блока с котрольной суммой */
+		if (fread(block_body, block_len + 1, 1, fobj) != 1) {
+			PRINTERR("IO error: %s\n", config.objnames[cur_input]);
+			break;
+		}
 	}
 end:;
 }
+
+@ Буффер для тела блока.
+@<Глобальные...@>=
+static uint8_t block_body[65536 + 1];
 
 @ @<Глобальные...@>=
 static void handle_one_file(FILE *, FILE *);
@@ -127,6 +140,7 @@ static char argp_program_doc[] = "Link MACRO-11 object files";
 @<Глобальн...@>=
 static struct argp_option options[] = {@|
 	{ "output", 'o', "FILENAME", 0, "Output filename"},@|
+	{ "verbose", 'v', NULL, 0, "Verbose output"},@!
 	{ 0 }@/
 };
 static error_t parse_opt(int, char*, struct argp_state*);@!
@@ -135,13 +149,14 @@ static struct argp argp = {options, parse_opt, NULL, argp_program_doc};
 @ Эта структура используется для получения результатов разбора параметров командной строки.
 @<Собственные...@>=
 typedef struct _Arguments {
+	int  verbosity;
 	char output_filename[FILENAME_MAX]; /* Имя файла с тектом */
 	char **objnames;		    /* Имена объектных файлов
 					 objnames[?] == NULL --> конец имен*/
 } Arguments;
 
 @ @<Глобальные...@>=
-static Arguments config = { {0}, NULL, };
+static Arguments config = { 0, {0}, NULL, };
 
 
 @ Задачей данного простого парсера является заполнение структуры |Arguments| из указанных
@@ -152,6 +167,9 @@ parse_opt(int key, char *arg, struct argp_state *state) {
  Arguments *arguments;
 	arguments = (Arguments*)state->input;
  switch (key) {
+	case 'v':
+		++arguments->verbosity;
+		break;
 	case 'o':
 		if (strlen(arg) == 0)
 			return(ARGP_ERR_UNKNOWN);
@@ -177,11 +195,11 @@ parse_opt(int key, char *arg, struct argp_state *state) {
 	argp_parse(&argp, argc, argv, 0, 0, &config);@|
 	/* Проверка параметров */
 	if (strlen(config.output_filename) == 0) {
-		printerr("No output filename specified\n");
+		PRINTERR("No output filename specified\n");
 		return(ERR_SYNTAX);
 	}
 	if (config.objnames == NULL) {
-		printerr("No input filenames specified\n");
+		PRINTERR("No input filenames specified\n");
 		return(ERR_SYNTAX);
 	}
 
@@ -189,15 +207,15 @@ parse_opt(int key, char *arg, struct argp_state *state) {
 #include <string.h>
 #include <stdlib.h>
 
+#ifdef __linux__
+#include <stdint.h>
+#endif
+
 #include <argp.h>
 
-@ @<Глобальные...@>=
-static void printerr(const char*);
-
-@ @c
-static void
-printerr(const char *str) {
-	fprintf(stderr, str);
-}
-
+@
+@<Глобальные...@>=
+#define PRINTVERB(level, fmt, a...) (((config.verbosity) >= level) ? printf(\
+  (fmt), ## a) : 0)
+#define PRINTERR(fmt, a...) fprintf(stderr, (fmt), ## a) 
 
