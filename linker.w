@@ -1,4 +1,4 @@
-\input cwebmac	%-ru
+\input cwebmac-ru
 
 \def\version{0.1}
 \font\twentycmcsc=cmcsc10 at 20 truept
@@ -109,6 +109,7 @@ handle_one_file(FILE *fresult, FILE *fobj) {
 			PRINTERR("IO error: %s\n", config.objnames[cur_input]);
 			break;
 		}
+		@<Обработать блок@>@;
 	}
 end:;
 }
@@ -117,8 +118,147 @@ end:;
 @<Глобальные...@>=
 static uint8_t block_body[65536 + 1];
 
+@ Обработка одного бинарного блока. По первому байту блока выясняем его тип.
+@<Обработать блок@>=
+	PRINTVERB(2, "  Block type: %o, ", block_body[0]);
+	switch (block_body[0]) {
+		case 1 :
+			PRINTVERB(2, "GSD\n");
+			@<Разобрать GSD@>@;
+			break;
+		case 2 :
+			PRINTVERB(2, "ENDGSD\n");
+			break;
+		case 3 :
+			PRINTVERB(2, "TXT\n");
+			break;
+		case 4 :
+			PRINTVERB(2, "RLD\n");
+			break;
+		case 5 :
+			PRINTVERB(2, "ISD\n");
+			break;
+		case 6 :
+			PRINTVERB(2, "ENDMOD\n");
+			break;
+		case 7 :
+			PRINTVERB(2, "Librarian header\n");
+			break;
+		case 8 :
+			PRINTVERB(2, "Librarian end\n");
+			break;
+		default :
+		  PRINTERR("Bad block type: %o : %s\n", block_body[0], config.objnames[cur_input]);
+	}
+
+@ Разбор блока GSD~---~Global Symbol Directory (каталог глобальных символов). Он
+содержи всю информацию, необходимую линковщику для присваивания адресов
+глобальным сиволам и выделения памяти.
+Каталог состоит из 8-ми байтовых записей следующих типов:
+@d GSD_MODULE_NAME			0
+@d GSD_CSECT_NAME			1
+@d GSD_INTERNAL_SYMBOL_NAME 2
+@d GSD_TRANFER_ADDRESS		3
+@d GSD_GLOBAL_SYMBOL_NAME	4
+@d GSD_PSECT_NAME			5
+@d GDS_IDENT				6
+@d GSD_MAPPED_ARRAY			7
+@<Разобрать GSD@>=
+	handle_GSD(block_len);
+@ @<Собственные типы...@>=
+typedef struct _GSD_Entry {
+	uint16_t name[2];
+	uint8_t flags;
+	uint8_t type;
+	uint16_t value;
+} GSD_Entry;
+
+@ @c
+void handle_GSD(int len) {
+	int i;
+	GSD_Entry *entry;
+	char name[7];
+
+	for (i = 2; i< len; i += 8) {
+		entry = (GSD_Entry*)(block_body + i);
+		@<Распаковать имя@>@;
+		PRINTVERB(2, "    Entry name: '%s', type: %o --- ", name, entry->type);
+		switch (entry->type) {
+			case GSD_MODULE_NAME: 
+				/* Просто имя модуля. */
+				PRINTVERB(2, "ModuleName.\n");
+				PRINTVERB(1, "Module:%s\n", name);
+				break;
+			case GSD_CSECT_NAME:
+				/* Имя управляющей секции */
+				PRINTVERB(2, "CSectName, flags=%o, length=%d.\n",
+						entry->flags, entry->value);
+				break;
+			case GSD_INTERNAL_SYMBOL_NAME:
+				/* Имя внутреннего символа */
+				PRINTVERB(2, "InternalSymbolName\n");
+				break;
+			case GSD_TRANFER_ADDRESS:
+				/* Адрес запуска программы */
+				PRINTVERB(2, "TransferAddress, offset=%o.\n", entry->value);
+				break;
+			case GSD_GLOBAL_SYMBOL_NAME:
+				/* Определение/ссылка на глобольный адрес */
+				PRINTVERB(2, "GlobalSymbolName, flags=%o, value=%o.\n",
+						entry->flags, entry->value);
+				break;		
+			case GSD_PSECT_NAME:
+				/* Имя программной секции */
+				PRINTVERB(2, "PSectName, flags=%o, max size=%o.\n",
+						entry->flags, entry->value);
+				break;
+			case GDS_IDENT:
+				/* Версия модуля */
+				PRINTVERB(2, "Ident.\n");
+				break;
+			case GSD_MAPPED_ARRAY:
+			default:
+			  PRINTERR("Bad entry type: %o : %s\n", entry->type, config.objnames[cur_input]);
+		}
+	}
+}
+
+@ @<Распаковать имя@>=
+	fromRadix50(entry->name[0], name);
+	fromRadix50(entry->name[1], name + 3);
+
+@* Вспомогательные функции.
+
+@ Перевод двух байт из RADIX-50 в строку.
+@c
+static void fromRadix50(int n, char *name) {
+	int i, x;
+
+	for (i = 2; i >= 0; --i) {
+		x = n % 050;
+		n /= 050;
+		if (x <= 032 && x != 0) {
+			name[i] = x + 'A' - 1; 
+			continue;
+		}
+		if (x >= 036) {
+			name[i] = x + '0' - 036;
+			continue;
+		}
+		switch (x) {
+			case 033 : name[i] = '$'; break;
+			case 034 : name[i] = '.'; break;
+			case 035 : name[i] = '%'; break;
+			case 000 : name[i] = ' '; break;
+		}
+	}
+	name[3] = '\0';
+}
+
 @ @<Глобальные...@>=
 static void handle_one_file(FILE *, FILE *);
+static void handle_GSD(int);
+static void fromRadix50(int, char*);
 
 @* Разбор параметров командной строки.
 
