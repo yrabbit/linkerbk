@@ -1,3 +1,4 @@
+% vim: set ai textwidth=80:
 \input cwebmac-ru
 
 \def\version{0.1}
@@ -153,7 +154,7 @@ static uint8_t block_body[65536 + 1];
 
 @ Разбор блока GSD~---~Global Symbol Directory (каталог глобальных символов). Он
 содержи всю информацию, необходимую линковщику для присваивания адресов
-глобальным сиволам и выделения памяти.
+глобальным символам и выделения памяти.
 Каталог состоит из 8-ми байтовых записей следующих типов:
 @d GSD_MODULE_NAME			0
 @d GSD_CSECT_NAME			1
@@ -206,15 +207,18 @@ void handle_GSD(int len) {
 				/* Определение/ссылка на глобольный адрес */
 				PRINTVERB(2, "GlobalSymbolName, flags:%o, value:%o.\n",
 						entry->flags, entry->value);
+				@<Обработать глобальные символы и ссылки@>@;		
 				break;		
 			case GSD_PSECT_NAME:
 				/* Имя программной секции */
 				PRINTVERB(2, "PSectName, flags:%o, max length:%o.\n",
 						entry->flags, entry->value);
+				@<Обработать программную секцию@>@;
 				break;
 			case GDS_IDENT:
 				/* Версия модуля */
 				PRINTVERB(2, "Ident.\n");
+				PRINTVERB(1, "  Ident: %s\n", name);
 				break;
 			case GSD_MAPPED_ARRAY:
 				/* Массив */
@@ -229,6 +233,88 @@ void handle_GSD(int len) {
 @ @<Распаковать имя@>=
 	fromRadix50(entry->name[0], name);
 	fromRadix50(entry->name[1], name + 3);
+
+@ Разбор определения/ссылки на глобальный символ.
+@d GLOBAL_WEAK_MASK	  001 // 00000001b
+@d GLOBAL_DEFINITION_MASK 010 // 00001000b
+@d GLOBAL_RELOCATION_MASK 040 // 00100000b
+@c
+static void
+handleGlobalSymbol(GSD_Entry *entry) {
+	if (config.verbosity >= 2) {
+		PRINTVERB(2, "      Flags: ");
+		if (entry->flags & GLOBAL_WEAK_MASK) {
+			PRINTVERB(2, "Weak,");
+		} else {
+			PRINTVERB(2, "Strong,");
+		}
+		if (entry->flags & GLOBAL_DEFINITION_MASK) {
+			PRINTVERB(2, "Definition,");
+		} else {
+			PRINTVERB(2, "Reference,");
+		}
+		if (entry->flags & GLOBAL_WEAK_MASK) {
+			PRINTVERB(2, "Relative.\n");
+		} else {
+			PRINTVERB(2, "Absolute.\n");
+		}
+	}	
+}
+
+@ Разбор программной секции.
+@d PSECT_SAVE_MASK	  0001	// 00000001b
+@d PSECT_ALLOCATION_MASK  0004  // 00000100b
+@d PSECT_ACCESS_MASK	  0020  // 00010000b
+@d PSECT_RELOCATION_MASK  0040  // 00100000b
+@d PSECT_SCOPE_MASK	  0100  // 01000000b
+@d PSECT_TYPE_MASK	  0200  // 10000000b
+@c
+static void
+handleProgramSection(GSD_Entry *entry) {
+	if (config.verbosity >= 2) {
+		PRINTVERB(2, "      Flags: ");
+		if (entry->flags & PSECT_SAVE_MASK) {
+			PRINTVERB(2, "RootScope,");
+		} else {
+			PRINTVERB(2, "NonRootScope,");
+		}
+		if (entry->flags & PSECT_ALLOCATION_MASK) {
+			PRINTVERB(2, "Overlay,");
+		} else {
+			PRINTVERB(2, "Concatenate,");
+		}
+		if (entry->flags & PSECT_ACCESS_MASK) {
+			PRINTVERB(2, "ReadOnly,");
+		} else {
+			PRINTVERB(2, "ReadWrite,");
+		}
+		if (entry->flags & PSECT_RELOCATION_MASK) {
+			PRINTVERB(2, "Relocable,");
+		} else {
+			PRINTVERB(2, "Absolute,");
+		}
+		if (entry->flags & PSECT_SCOPE_MASK) {
+			PRINTVERB(2, "Global,");
+		} else {
+			PRINTVERB(2, "Local,");
+		}
+		if (entry->flags & PSECT_TYPE_MASK) {
+			PRINTVERB(2, "Dref.\n");
+		} else {
+			PRINTVERB(2, "Iref.\n");
+		}
+	}
+}
+
+@ @<Обработать глобальные символы и ссылки@>=
+handleGlobalSymbol(entry);
+
+@ @<Обработать программную секцию@>=
+handleProgramSection(entry);
+
+@ @<Глобальные...@>=
+static void handleGlobalSymbol(GSD_Entry *);
+static void handleProgramSection(GSD_Entry *);
 
 @* Вспомогательные функции.
 
