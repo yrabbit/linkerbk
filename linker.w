@@ -88,6 +88,7 @@ handle_one_file(FILE *fresult, FILE *fobj) {
 	int first_byte;
 	unsigned int block_len;
 	
+	current_block = 0;
 	while (!feof(fobj)) {
 		/* Ищем начало блока */
 		do {
@@ -106,7 +107,7 @@ handle_one_file(FILE *fresult, FILE *fobj) {
 		PRINTVERB(2, "Binary block found. Length:%d\n", block_len);
 
 		/* Читаем тело блока с котрольной суммой */
-		if (fread(block_body, block_len + 1, 1, fobj) != 1) {
+		if (fread(block_body[current_block], block_len + 1, 1, fobj) != 1) {
 			PRINTERR("IO error: %s\n", config.objnames[cur_input]);
 			break;
 		}
@@ -115,14 +116,17 @@ handle_one_file(FILE *fresult, FILE *fobj) {
 end:;
 }
 
-@ Буффер для тела блока.
+@ Буффер для тела блока. Две части буффера могут переключаться чтобы хранить
+предыдущий обработанный блок. Может быть полезным, когда содержимое блока
+возможно будет изменено последующим блоком.
 @<Глобальные...@>=
-static uint8_t block_body[65536 + 1];
+static uint8_t block_body[2][65536 + 1];
+static int current_block; /* Индекс текущей части буффера */
 
 @ Обработка одного бинарного блока. По первому байту блока выясняем его тип.
 @<Обработать блок@>=
-	PRINTVERB(2, "  Block type: %o, ", block_body[0]);
-	switch (block_body[0]) {
+	PRINTVERB(2, "  Block type: %o, ", block_body[current_block][0]);
+	switch (block_body[current_block][0]) {
 		case 1 :
 			PRINTVERB(2, "GSD\n");
 			@<Разобрать GSD@>@;
@@ -132,6 +136,7 @@ static uint8_t block_body[65536 + 1];
 			break;
 		case 3 :
 			PRINTVERB(2, "TXT\n");
+			@<Обработать секцию TXT@>@;
 			break;
 		case 4 :
 			PRINTVERB(2, "RLD\n");
@@ -149,11 +154,12 @@ static uint8_t block_body[65536 + 1];
 			PRINTVERB(2, "Librarian end\n");
 			break;
 		default :
-		  PRINTERR("Bad block type: %o : %s\n", block_body[0], config.objnames[cur_input]);
+		  PRINTERR("Bad block type: %o : %s\n",
+		  block_body[current_block][0], config.objnames[cur_input]);
 	}
 
 @ Разбор блока GSD~---~Global Symbol Directory (каталог глобальных символов). Он
-содержи всю информацию, необходимую линковщику для присваивания адресов
+содержит всю информацию, необходимую линковщику для присваивания адресов
 глобальным символам и выделения памяти.
 Каталог состоит из 8-ми байтовых записей следующих типов:
 @d GSD_MODULE_NAME			0
@@ -181,7 +187,7 @@ void handle_GSD(int len) {
 	char name[7];
 
 	for (i = 2; i< len; i += 8) {
-		entry = (GSD_Entry*)(block_body + i);
+		entry = (GSD_Entry*)(block_body[current_block] + i);
 		@<Распаковать имя@>@;
 		PRINTVERB(2, "    Entry name: '%s', type: %o --- ", name, entry->type);
 		switch (entry->type) {
@@ -225,7 +231,8 @@ void handle_GSD(int len) {
 				PRINTVERB(2, "MappedArray, length:%o.\n", entry->value);
 				break;
 			default:
-			  PRINTERR("Bad entry type: %o : %s\n", entry->type, config.objnames[cur_input]);
+			  PRINTERR("Bad entry type: %o : %s\n", 
+				entry->type, config.objnames[cur_input]);
 		}
 	}
 }
@@ -242,7 +249,7 @@ void handle_GSD(int len) {
 static void
 handleGlobalSymbol(GSD_Entry *entry) {
 	if (config.verbosity >= 2) {
-		PRINTVERB(2, "      Flags: ");
+		PRINTVERB(2, "        Flags: ");
 		if (entry->flags & GLOBAL_WEAK_MASK) {
 			PRINTVERB(2, "Weak,");
 		} else {
@@ -272,7 +279,7 @@ handleGlobalSymbol(GSD_Entry *entry) {
 static void
 handleProgramSection(GSD_Entry *entry) {
 	if (config.verbosity >= 2) {
-		PRINTVERB(2, "      Flags: ");
+		PRINTVERB(2, "        Flags: ");
 		if (entry->flags & PSECT_SAVE_MASK) {
 			PRINTVERB(2, "RootScope,");
 		} else {
@@ -306,15 +313,30 @@ handleProgramSection(GSD_Entry *entry) {
 	}
 }
 
+@ Обработать секцию Text.
+@c
+static void 
+handleTextSection(uint8_t *block) {
+	uint16_t addr;
+
+	addr = block[2] + block[3] * 256;
+	PRINTVERB(2, "  Load address: %o.\n", addr);
+}
+
+
 @ @<Обработать глобальные символы и ссылки@>=
 handleGlobalSymbol(entry);
 
 @ @<Обработать программную секцию@>=
 handleProgramSection(entry);
 
+@ @<Обработать секцию TXT@>=
+handleTextSection(block_body[current_block]);
+
 @ @<Глобальные...@>=
 static void handleGlobalSymbol(GSD_Entry *);
 static void handleProgramSection(GSD_Entry *);
+static void handleTextSection(uint8_t *);
 
 @* Вспомогательные функции.
 
