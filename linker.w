@@ -191,7 +191,7 @@ void handle_GSD(int len) {
 				break;
 			case GSD_CSECT_NAME:
 				/* Имя управляющей секции */
-				PRINTVERB(2, "CSectName, flags=%o, length=%d.\n",
+				PRINTVERB(2, "CSectName, flags:%o, length:%d.\n",
 						entry->flags, entry->value);
 				break;
 			case GSD_INTERNAL_SYMBOL_NAME:
@@ -200,16 +200,16 @@ void handle_GSD(int len) {
 				break;
 			case GSD_TRANFER_ADDRESS:
 				/* Адрес запуска программы */
-				PRINTVERB(2, "TransferAddress, offset=%o.\n", entry->value);
+				PRINTVERB(2, "TransferAddress, offset:%o.\n", entry->value);
 				break;
 			case GSD_GLOBAL_SYMBOL_NAME:
 				/* Определение/ссылка на глобольный адрес */
-				PRINTVERB(2, "GlobalSymbolName, flags=%o, value=%o.\n",
+				PRINTVERB(2, "GlobalSymbolName, flags:%o, value:%o.\n",
 						entry->flags, entry->value);
 				break;		
 			case GSD_PSECT_NAME:
 				/* Имя программной секции */
-				PRINTVERB(2, "PSectName, flags=%o, max size=%o.\n",
+				PRINTVERB(2, "PSectName, flags:%o, max length:%o.\n",
 						entry->flags, entry->value);
 				break;
 			case GDS_IDENT:
@@ -217,6 +217,9 @@ void handle_GSD(int len) {
 				PRINTVERB(2, "Ident.\n");
 				break;
 			case GSD_MAPPED_ARRAY:
+				/* Массив */
+				PRINTVERB(2, "MappedArray, length:%o.\n", entry->value);
+				break;
 			default:
 			  PRINTERR("Bad entry type: %o : %s\n", entry->type, config.objnames[cur_input]);
 		}
