@@ -366,6 +366,7 @@ handleRelocationDirectory(uint8_t *block, int len) {
 	RLD_Entry *entry;
 	RLD_Const_Entry *const_entry;
 	char gname[7];
+	uint16_t *value;
 	int i;
 
 	for (i = 2; i < len; ) {
@@ -427,6 +428,7 @@ handleRelocationDirectory(uint8_t *block, int len) {
 				break;
 			case RLD_CMD_COMPLEX_RELOCATION:
 				PRINTVERB(2, "Complex Relocation.\n");
+				@<Сложная ссылка@>@;
 				break;
 			default :
 				PRINTERR("Bad RLD entry type: %o : %s\n", 
@@ -526,7 +528,84 @@ handleRelocationDirectory(uint8_t *block, int len) {
 		const_entry->constant);
 	i += 8;
 
-
+@ ?
+@d CREL_OP_NONE			000
+@d CREL_OP_ADDITION		001
+@d CREL_OP_SUBSTRACTION		002
+@d CREL_OP_MULTIPLICATION	003
+@d CREL_OP_DIVISION		004
+@d CREL_OP_AND			005
+@d CREL_OP_OR			006
+@d CREL_OP_XOR			007
+@d CREL_OP_NEG			010
+@d CREL_OP_COM			011
+@d CREL_OP_STORE_RESULT		012
+@d CREL_OP_STORE_RESULT_DISP	013
+@d CREL_OP_FETCH_GLOBAL		016
+@d CREL_OP_FETCH_RELOCABLE	017
+@d CREL_OP_FETCH_CONSTANT	020
+@<Сложная ссылка@>=
+	PRINTVERB(2, "      Disp: %o.\n        ", entry->disp);
+	for (i += 2; block[i] != CREL_OP_STORE_RESULT; ++i) {
+		switch (block[i]) {
+			case CREL_OP_NONE:
+				break;
+			case CREL_OP_ADDITION:
+				PRINTVERB(2, "+ ");
+				break;
+			case CREL_OP_SUBSTRACTION:
+				PRINTVERB(2, "- ");
+				break;
+			case CREL_OP_MULTIPLICATION:
+				PRINTVERB(2, "* ");
+				break;
+			case CREL_OP_DIVISION:
+				PRINTVERB(2, "/ ");
+				break;
+			case CREL_OP_AND:
+				PRINTVERB(2, "and ");
+				break;
+			case CREL_OP_OR:
+				PRINTVERB(2, "or ");
+				break;
+			case CREL_OP_XOR:
+				PRINTVERB(2, "xor ");
+				break;
+			case CREL_OP_NEG:
+				PRINTVERB(2, "neg ");
+				break;
+			case CREL_OP_COM:
+				PRINTVERB(2, "com ");
+				break;
+			case CREL_OP_STORE_RESULT_DISP:
+				break;
+			case CREL_OP_FETCH_GLOBAL:
+				++i;
+				value = (uint16_t *)(block + i);
+				fromRadix50(value[0], gname);
+				fromRadix50(value[1], gname + 3);
+				i += 3;
+				PRINTVERB(2, "%s ", gname);
+				break;
+			case CREL_OP_FETCH_RELOCABLE:
+				value = (uint16_t *)(block + i + 2);
+				PRINTVERB(2, "sect:%o/%o ", block[i + 1],
+					value[0]);
+				i += 3;	
+				break;
+			case CREL_OP_FETCH_CONSTANT:
+				++i;
+				value = (uint16_t *)(block + i);
+				++i;
+				PRINTVERB(2, "%o ", *value);
+				break;
+			default :
+				PRINTERR("Bad complex relocation opcode.\n");
+				return;
+		}
+	}
+	++i;
+	PRINTVERB(2, "\n");
 
 @ @<Обработать глобальные символы и ссылки@>=
 handleGlobalSymbol(entry);
