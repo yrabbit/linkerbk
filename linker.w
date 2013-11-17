@@ -104,7 +104,7 @@ handle_one_file(FILE *fresult, FILE *fobj) {
 		}
 		if (obj_header.zero != 0) continue;
 		block_len = obj_header.len[0] + obj_header.len[1] * 256 - 4;
-		PRINTVERB(2, "Binary block found. Length:%d\n", block_len);
+		PRINTVERB(2, "Binary block found. Length:%o\n", block_len);
 
 		/* Читаем тело блока с котрольной суммой */
 		if (fread(block_body[current_block], block_len + 1, 1, fobj) != 1) {
@@ -140,6 +140,7 @@ static int current_block; /* Индекс текущей части буффера */
 			break;
 		case 4 :
 			PRINTVERB(2, "RLD\n");
+			@<Обработать секцию перемещений@>@;
 			break;
 		case 5 :
 			PRINTVERB(2, "ISD\n");
@@ -198,7 +199,7 @@ void handle_GSD(int len) {
 				break;
 			case GSD_CSECT_NAME:
 				/* Имя управляющей секции */
-				PRINTVERB(2, "CSectName, flags:%o, length:%d.\n",
+				PRINTVERB(2, "CSectName, flags:%o, length:%o.\n",
 						entry->flags, entry->value);
 				break;
 			case GSD_INTERNAL_SYMBOL_NAME:
@@ -323,6 +324,209 @@ handleTextSection(uint8_t *block) {
 	PRINTVERB(2, "  Load address: %o.\n", addr);
 }
 
+@ Блоки каталогов перемещений содержат информацию, которая нужна линковщику для
+корректировки ссылок в предыдущем блоке TEXT. Каждый модуль должеен иметь хотя
+бы один блок RLD, который расположен впереди всех блоков TEXT, его
+задача~---~описать текущую PSECT и её размещение.
+
+Каталог перемещений состоит из записей:
+@ @<Собственные типы...@>=
+typedef struct _RLD_Entry {
+	struct {
+	    uint8_t type:7;
+	    uint8_t b:1;
+	} cmd;
+	uint8_t disp;
+	uint16_t value[2];
+} RLD_Entry;
+
+typedef struct _RLD_Const_Entry {
+	RLD_Entry ent;
+	uint16_t constant;
+} RLD_Const_Entry;
+
+@ Поле |cmd.type| указывает  
+@d RLD_CMD_INTERNAL_RELOCATION			01
+@d RLD_CMD_GLOBAL_RELOCATION			02
+@d RLD_CMD_INTERNAL_DISPLACED_RELOCATION	03
+@d RLD_CMD_GLOBAL_DISPLACED_RELOCATION		04
+@d RLD_CMD_GLOBAL_ADDITIVE_RELOCATION		05
+@d RLD_CMD_GLOBAL_ADDITIVE_DISPLACED_RELOCATION 06
+@d RLD_CMD_LOCATION_COUNTER_DEFINITION		07
+@d RLD_CMD_LOCATION_COUNTER_MODIFICATION	010 
+@d RLD_CMD_PROGRAM_LIMITS			011
+@d RLD_CMD_PSECT_RELOCATION			012
+@d RLD_CMD_PSECT_DISPLACED_RELOCATION		014
+@d RLD_CMD_PSECT_ADDITIVE_RELOCATION		015
+@d RLD_CMD_PSECT_ADDITIVE_DISPLACED_RELOCATION  016
+@d RLD_CMD_COMPLEX_RELOCATION			017
+@c
+static void 
+handleRelocationDirectory(uint8_t *block, int len) {
+	RLD_Entry *entry;
+	RLD_Const_Entry *const_entry;
+	char gname[7];
+	int i;
+
+	for (i = 2; i < len; ) {
+		entry = (RLD_Entry*)(block + i);
+		PRINTVERB(2, "    cmd: %o --- ", entry->cmd.type);
+		switch (entry->cmd.type) {
+			case RLD_CMD_INTERNAL_RELOCATION:
+				PRINTVERB(2, "Internal Relocation.\n");
+				@<Прямая ссылка на абсолютный адрес@>@;
+				break;
+			case RLD_CMD_GLOBAL_RELOCATION:
+				PRINTVERB(2, "Global Relocation.\n");
+				@<Прямая ссылка на глобальный символ@>@;
+				break;
+			case RLD_CMD_INTERNAL_DISPLACED_RELOCATION:
+				PRINTVERB(2, "Internal Displaced Relocation.\n");
+				@<Косвенная ссылка на абсолютный адрес@>@;
+				break;
+			case RLD_CMD_GLOBAL_DISPLACED_RELOCATION:
+				PRINTVERB(2, "Global Displaced Relocation.\n");
+				@<Косвенная ссылка на глобальный символ@>@;
+				break;
+			case RLD_CMD_GLOBAL_ADDITIVE_RELOCATION:
+				PRINTVERB(2, "Global Additive Relocation.\n");
+				@<Прямая ссылка на смещенный глобальный символ@>@;
+				break;
+			case RLD_CMD_GLOBAL_ADDITIVE_DISPLACED_RELOCATION:
+				PRINTVERB(2, "Global Additive Displaced Relocation.\n");
+				@<Косвенная ссылка на смещенный глобальный
+				  символ@>@;
+				break;
+			case RLD_CMD_LOCATION_COUNTER_DEFINITION:
+				PRINTVERB(2, "Location Counter Definition.\n");
+				@<Установка текущей секции и позиции@>@;
+				break;
+			case RLD_CMD_LOCATION_COUNTER_MODIFICATION:
+				PRINTVERB(2, "Location Counter Modification.\n");
+				@<Изменение текущей позиции@>@;
+				break;
+			case RLD_CMD_PROGRAM_LIMITS:
+				@<Установка пределов@>@;
+				PRINTVERB(2, "Program Limits.\n");
+				break;
+			case RLD_CMD_PSECT_RELOCATION:
+				@<Прямая ссылка на секцию@>@;
+				PRINTVERB(2, "PSect Relocation.\n");
+				break;
+			case RLD_CMD_PSECT_DISPLACED_RELOCATION:
+				PRINTVERB(2, "PSect Displaced Relocation.\n");
+				@<Косвенная ссылка на секцию@>@;
+				break;
+			case RLD_CMD_PSECT_ADDITIVE_RELOCATION:
+				PRINTVERB(2, "PSect Additive Relocation.\n");
+				@<Прямая смещенная ссылка на секцию@>@;
+				break;
+			case RLD_CMD_PSECT_ADDITIVE_DISPLACED_RELOCATION:
+				PRINTVERB(2, "PSect Additive Displaced Relocation.\n");
+				@<Косвенная смещенная ссылка на секцию@>@;
+				break;
+			case RLD_CMD_COMPLEX_RELOCATION:
+				PRINTVERB(2, "Complex Relocation.\n");
+				break;
+			default :
+				PRINTERR("Bad RLD entry type: %o : %s\n", 
+					entry->cmd.type, config.objnames[cur_input]);
+				return;	
+		}
+	}
+}
+
+@ ?
+@<Прямая ссылка на абсолютный адрес@>=
+	PRINTVERB(2, "      Disp: %o, +Const: %o.\n", entry->disp, entry->value[0]);
+	i += 4;
+@ ?
+@<Косвенная ссылка на абсолютный адрес@>=
+	PRINTVERB(2, "      Disp: %o, +Const: %o.\n", entry->disp, entry->value[0]);
+	i += 4;
+@ ?
+@<Прямая ссылка на глобальный символ@>=
+	fromRadix50(entry->value[0], gname);
+	fromRadix50(entry->value[1], gname + 3);
+	PRINTVERB(2, "      Disp: %o, Name: %s.\n", entry->disp, gname);
+	i += 6;
+@ ?
+@<Косвенная ссылка на глобальный символ@>=
+	fromRadix50(entry->value[0], gname);
+	fromRadix50(entry->value[1], gname + 3);
+	PRINTVERB(2, "      Disp: %o, Name: %s.\n", entry->disp, gname);
+	i += 6;
+
+@ ?
+@<Прямая ссылка на смещенный глобальный символ@>=
+	const_entry = (RLD_Const_Entry *) entry;
+	fromRadix50(entry->value[0], gname);
+	fromRadix50(entry->value[1], gname + 3);
+	PRINTVERB(2, "      Disp: %o, Name: %s, +Const: %o.\n", entry->disp, gname,
+		const_entry->constant);
+	i += 8;
+
+@ ?
+@<Косвенная ссылка на смещенный глобальный символ@>=
+	const_entry = (RLD_Const_Entry *) entry;
+	fromRadix50(entry->value[0], gname);
+	fromRadix50(entry->value[1], gname + 3);
+	PRINTVERB(2, "      Disp: %o, Name: %s, +Const: %o.\n", entry->disp, gname,
+		const_entry->constant);
+	i += 8;
+
+@ ?
+@<Установка текущей секции и позиции@>=
+	const_entry = (RLD_Const_Entry *) entry;
+	fromRadix50(entry->value[0], gname);
+	fromRadix50(entry->value[1], gname + 3);
+	PRINTVERB(2, "      Name: %s, +Const: %o.\n", gname,
+		const_entry->constant);
+	i += 8;
+
+@ ?
+@<Изменение текущей позиции@>=
+	PRINTVERB(2, "      +Const: %o.\n", entry->value[0]);
+	i += 4;
+
+@ ?
+@<Установка пределов@>=
+	PRINTVERB(2, "      Disp: %o.\n", entry->disp);
+	i += 2;
+
+@ ?
+@<Прямая ссылка на секцию@>=
+	fromRadix50(entry->value[0], gname);
+	fromRadix50(entry->value[1], gname + 3);
+	PRINTVERB(2, "      Disp: %o, Name: %s.\n", entry->disp, gname);
+	i += 6;
+
+@ ?
+@<Косвенная ссылка на секцию@>=
+	fromRadix50(entry->value[0], gname);
+	fromRadix50(entry->value[1], gname + 3);
+	PRINTVERB(2, "      Disp: %o, Name: %s.\n", entry->disp, gname);
+	i += 6;
+
+@ ?
+@<Прямая смещенная ссылка на секцию@>=
+	const_entry = (RLD_Const_Entry *) entry;
+	fromRadix50(entry->value[0], gname);
+	fromRadix50(entry->value[1], gname + 3);
+	PRINTVERB(2, "      Name: %s, +Const: %o.\n", gname,
+		const_entry->constant);
+	i += 8;
+
+@ ?
+@<Косвенная смещенная ссылка на секцию@>=
+	const_entry = (RLD_Const_Entry *) entry;
+	fromRadix50(entry->value[0], gname);
+	fromRadix50(entry->value[1], gname + 3);
+	PRINTVERB(2, "      Name: %s, +Const: %o.\n", gname,
+		const_entry->constant);
+	i += 8;
+
+
 
 @ @<Обработать глобальные символы и ссылки@>=
 handleGlobalSymbol(entry);
@@ -333,10 +537,14 @@ handleProgramSection(entry);
 @ @<Обработать секцию TXT@>=
 handleTextSection(block_body[current_block]);
 
+@ @<Обработать секцию перемещен...@>=
+handleRelocationDirectory(block_body[current_block], block_len);
+
 @ @<Глобальные...@>=
 static void handleGlobalSymbol(GSD_Entry *);
 static void handleProgramSection(GSD_Entry *);
 static void handleTextSection(uint8_t *);
+static void handleRelocationDirectory(uint8_t *, int);
 
 @* Вспомогательные функции.
 
