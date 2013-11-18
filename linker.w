@@ -1,5 +1,5 @@
 % vim: set ai textwidth=80:
-\input cwebmac-ru
+\input cwebmac %-ru
 
 \def\version{0.1}
 \font\twentycmcsc=cmcsc10 at 20 truept
@@ -29,9 +29,11 @@ main(int argc, char *argv[])
 {
 	@<Данные программы@>@;
 	const char *objname;
+	int i;
 
 	@<Разобрать командную строку@>@;
 	@<Создаём файл результата@>@;
+	@<Инициализация каталога секций@>@;
 
 	/* Поочередно обрабатываем все заданные объектные файлы */
 	cur_input = 0;
@@ -41,6 +43,7 @@ main(int argc, char *argv[])
 		fclose(fobj);
 		++cur_input;
 	}
+	@<Очистка каталога секций@>@;
 	fclose(fresult);
 	return(0);
 }
@@ -88,7 +91,6 @@ handle_one_file(FILE *fresult, FILE *fobj) {
 	int first_byte;
 	unsigned int block_len;
 	
-	current_block = 0;
 	while (!feof(fobj)) {
 		/* Ищем начало блока */
 		do {
@@ -107,7 +109,7 @@ handle_one_file(FILE *fresult, FILE *fobj) {
 		PRINTVERB(2, "Binary block found. Length:%o\n", block_len);
 
 		/* Читаем тело блока с котрольной суммой */
-		if (fread(block_body[current_block], block_len + 1, 1, fobj) != 1) {
+		if (fread(block_body, block_len + 1, 1, fobj) != 1) {
 			PRINTERR("IO error: %s\n", config.objnames[cur_input]);
 			break;
 		}
@@ -116,17 +118,14 @@ handle_one_file(FILE *fresult, FILE *fobj) {
 end:;
 }
 
-@ Буффер для тела блока. Две части буффера могут переключаться чтобы хранить
-предыдущий обработанный блок. Может быть полезным, когда содержимое блока
-возможно будет изменено последующим блоком.
+@ Буффер для тела блока. 
 @<Глобальные...@>=
-static uint8_t block_body[2][65536 + 1];
-static int current_block; /* Индекс текущей части буффера */
+static uint8_t block_body[65536 + 1];
 
 @ Обработка одного бинарного блока. По первому байту блока выясняем его тип.
 @<Обработать блок@>=
-	PRINTVERB(2, "  Block type: %o, ", block_body[current_block][0]);
-	switch (block_body[current_block][0]) {
+	PRINTVERB(2, "  Block type: %o, ", block_body[0]);
+	switch (block_body[0]) {
 		case 1 :
 			PRINTVERB(2, "GSD\n");
 			@<Разобрать GSD@>@;
@@ -156,7 +155,7 @@ static int current_block; /* Индекс текущей части буффера */
 			break;
 		default :
 		  PRINTERR("Bad block type: %o : %s\n",
-		  block_body[current_block][0], config.objnames[cur_input]);
+		  block_body[0], config.objnames[cur_input]);
 	}
 
 @ Разбор блока GSD~---~Global Symbol Directory (каталог глобальных символов). Он
@@ -188,7 +187,7 @@ void handle_GSD(int len) {
 	char name[7];
 
 	for (i = 2; i< len; i += 8) {
-		entry = (GSD_Entry*)(block_body[current_block] + i);
+		entry = (GSD_Entry*)(block_body + i);
 		@<Распаковать имя@>@;
 		PRINTVERB(2, "    Entry name: '%s', type: %o --- ", name, entry->type);
 		switch (entry->type) {
@@ -269,7 +268,21 @@ handleGlobalSymbol(GSD_Entry *entry) {
 	}	
 }
 
-@ Разбор программной секции.
+@ Разбор программной секции. Данные о секциях хранятся в каталоге секций.
+@d MAX_PROG_SECTIONS 254
+@<Собственные типы...@>=
+typedef struct _SectionDirEntry {
+	uint16_t name[2];	// Имя в Radix50
+	uint8_t	 flags;	// Флаги секции
+	uint16_t start;		// Смещение секции для текущего модуля
+	uint16_t min_addr;  // Минимальный адрес, с которого расположены данные
+	uint16_t len;	// Длина секции
+	uint8_t *text;	// Адрес блока памяти для текста секции
+} SectionDirEntry;
+@ @<Глобальные переменные...@>=
+static SectionDirEntry SectionDir[MAX_PROG_SECTIONS];
+static int NumSections;
+@
 @d PSECT_SAVE_MASK	  0001	// 00000001b
 @d PSECT_ALLOCATION_MASK  0004  // 00000100b
 @d PSECT_ACCESS_MASK	  0020  // 00010000b
@@ -279,6 +292,94 @@ handleGlobalSymbol(GSD_Entry *entry) {
 @c
 static void
 handleProgramSection(GSD_Entry *entry) {
+	int sec_num;
+	@<Вывести отладочную информацию по секциям@>@;
+	sec_num = findSection(entry->name);
+	PRINTVERB(2, "find section %d\n", sec_num);
+	if (sec_num == -1) {
+		@<Добавить программную секцию@>@;
+	} else {
+		// Изменить смещение секции в модуле
+		SectionDir[sec_num].start += SectionDir[sec_num].len;
+		SectionDir[sec_num].len += entry->value;
+	}
+}
+
+@ @<Глобальные переменные...@>=
+static int CurrentSection;
+
+@ Переключается текущая секция и изменяется позиция, с которой будут размещаться
+секции |TEXT|.
+@<Установка текущей секции и позиции@>=
+	const_entry = (RLD_Const_Entry *) entry;
+	fromRadix50(entry->value[0], gname);
+	fromRadix50(entry->value[1], gname + 3);
+	PRINTVERB(2, "      Name: %s, +Const: %o.\n", gname,
+		const_entry->constant);
+	CurrentSection = findSection(entry->value);
+	RLD_i += 8;
+
+@ Обработать секцию Text. Содержимое добавляется к текущей секции
+|CurrentSection|.
+@c
+static void 
+handleTextSection(uint8_t *block) {
+	uint16_t addr;
+
+	addr = block[2] + block[3] * 256;
+	PRINTVERB(2, "  Load address: %o, Current section: %d.\n", addr,
+	CurrentSection);
+
+}
+
+@
+@<Инициализация каталога секций@>=
+	NumSections = 0;
+	memset(SectionDir, 0, sizeof(SectionDir));
+
+@ @<Данные программы...@>=
+	char sect_name[7];
+@ @<Очистка каталога секций@>=
+	for (i = 0; i < NumSections; ++i) {
+		fromRadix50(SectionDir[i].name[0], sect_name);
+		fromRadix50(SectionDir[i].name[1], sect_name + 3);
+		PRINTVERB(2, "free section: %s, addr: %p, len: %o, min addr: %o,"
+			" current start: %o\n", sect_name,
+		SectionDir[i].text, SectionDir[i].len, SectionDir[i].min_addr,
+		SectionDir[i].start);
+		if (SectionDir[i].text != NULL)
+			free(SectionDir[i].text);
+	}
+	
+@ Найти программную секцию по имени.
+@c
+static int
+findSection(uint16_t *name) {
+	int found, i;
+
+	found = -1;
+	for (i = 0; i < NumSections; ++i) {
+		if (SectionDir[i].name[0] == name[0] && SectionDir[i].name[1] ==
+		name[1]) {
+			found = i;
+			break;
+		}
+	}
+
+	return(found);
+}
+@ @<Добавить программную секцию@>=
+	SectionDir[NumSections].name[0] = entry->name[0];
+	SectionDir[NumSections].name[1] = entry->name[1];
+	SectionDir[NumSections].flags = entry->flags;
+	SectionDir[NumSections].len = entry->value;
+	++NumSections;
+
+@ @<Глобальные переменны...@>=
+static int findSection(uint16_t *);
+
+
+@ @<Вывести отладочную информацию по секциям@>=
 	if (config.verbosity >= 2) {
 		PRINTVERB(2, "        Flags: ");
 		if (entry->flags & PSECT_SAVE_MASK) {
@@ -312,18 +413,6 @@ handleProgramSection(GSD_Entry *entry) {
 			PRINTVERB(2, "Iref.\n");
 		}
 	}
-}
-
-@ Обработать секцию Text.
-@c
-static void 
-handleTextSection(uint8_t *block) {
-	uint16_t addr;
-
-	addr = block[2] + block[3] * 256;
-	PRINTVERB(2, "  Load address: %o.\n", addr);
-}
-
 @ Блоки каталогов перемещений содержат информацию, которая нужна линковщику для
 корректировки ссылок в предыдущем блоке TEXT. Каждый модуль должеен иметь хотя
 бы один блок RLD, который расположен впереди всех блоков TEXT, его
@@ -367,10 +456,10 @@ handleRelocationDirectory(uint8_t *block, int len) {
 	RLD_Const_Entry *const_entry;
 	char gname[7];
 	uint16_t *value;
-	int i;
+	int RLD_i;
 
-	for (i = 2; i < len; ) {
-		entry = (RLD_Entry*)(block + i);
+	for (RLD_i = 2; RLD_i < len; ) {
+		entry = (RLD_Entry*)(block + RLD_i);
 		PRINTVERB(2, "    cmd: %o --- ", entry->cmd.type);
 		switch (entry->cmd.type) {
 			case RLD_CMD_INTERNAL_RELOCATION:
@@ -441,23 +530,23 @@ handleRelocationDirectory(uint8_t *block, int len) {
 @ ?
 @<Прямая ссылка на абсолютный адрес@>=
 	PRINTVERB(2, "      Disp: %o, +Const: %o.\n", entry->disp, entry->value[0]);
-	i += 4;
+	RLD_i += 4;
 @ ?
 @<Косвенная ссылка на абсолютный адрес@>=
 	PRINTVERB(2, "      Disp: %o, +Const: %o.\n", entry->disp, entry->value[0]);
-	i += 4;
+	RLD_i += 4;
 @ ?
 @<Прямая ссылка на глобальный символ@>=
 	fromRadix50(entry->value[0], gname);
 	fromRadix50(entry->value[1], gname + 3);
 	PRINTVERB(2, "      Disp: %o, Name: %s.\n", entry->disp, gname);
-	i += 6;
+	RLD_i += 6;
 @ ?
 @<Косвенная ссылка на глобальный символ@>=
 	fromRadix50(entry->value[0], gname);
 	fromRadix50(entry->value[1], gname + 3);
 	PRINTVERB(2, "      Disp: %o, Name: %s.\n", entry->disp, gname);
-	i += 6;
+	RLD_i += 6;
 
 @ ?
 @<Прямая ссылка на смещенный глобальный символ@>=
@@ -466,7 +555,7 @@ handleRelocationDirectory(uint8_t *block, int len) {
 	fromRadix50(entry->value[1], gname + 3);
 	PRINTVERB(2, "      Disp: %o, Name: %s, +Const: %o.\n", entry->disp, gname,
 		const_entry->constant);
-	i += 8;
+	RLD_i += 8;
 
 @ ?
 @<Косвенная ссылка на смещенный глобальный символ@>=
@@ -475,40 +564,31 @@ handleRelocationDirectory(uint8_t *block, int len) {
 	fromRadix50(entry->value[1], gname + 3);
 	PRINTVERB(2, "      Disp: %o, Name: %s, +Const: %o.\n", entry->disp, gname,
 		const_entry->constant);
-	i += 8;
-
-@ ?
-@<Установка текущей секции и позиции@>=
-	const_entry = (RLD_Const_Entry *) entry;
-	fromRadix50(entry->value[0], gname);
-	fromRadix50(entry->value[1], gname + 3);
-	PRINTVERB(2, "      Name: %s, +Const: %o.\n", gname,
-		const_entry->constant);
-	i += 8;
+	RLD_i += 8;
 
 @ ?
 @<Изменение текущей позиции@>=
 	PRINTVERB(2, "      +Const: %o.\n", entry->value[0]);
-	i += 4;
+	RLD_i += 4;
 
 @ ?
 @<Установка пределов@>=
 	PRINTVERB(2, "      Disp: %o.\n", entry->disp);
-	i += 2;
+	RLD_i += 2;
 
 @ ?
 @<Прямая ссылка на секцию@>=
 	fromRadix50(entry->value[0], gname);
 	fromRadix50(entry->value[1], gname + 3);
 	PRINTVERB(2, "      Disp: %o, Name: %s.\n", entry->disp, gname);
-	i += 6;
+	RLD_i += 6;
 
 @ ?
 @<Косвенная ссылка на секцию@>=
 	fromRadix50(entry->value[0], gname);
 	fromRadix50(entry->value[1], gname + 3);
 	PRINTVERB(2, "      Disp: %o, Name: %s.\n", entry->disp, gname);
-	i += 6;
+	RLD_i += 6;
 
 @ ?
 @<Прямая смещенная ссылка на секцию@>=
@@ -517,7 +597,7 @@ handleRelocationDirectory(uint8_t *block, int len) {
 	fromRadix50(entry->value[1], gname + 3);
 	PRINTVERB(2, "      Name: %s, +Const: %o.\n", gname,
 		const_entry->constant);
-	i += 8;
+	RLD_i += 8;
 
 @ ?
 @<Косвенная смещенная ссылка на секцию@>=
@@ -526,7 +606,7 @@ handleRelocationDirectory(uint8_t *block, int len) {
 	fromRadix50(entry->value[1], gname + 3);
 	PRINTVERB(2, "      Name: %s, +Const: %o.\n", gname,
 		const_entry->constant);
-	i += 8;
+	RLD_i += 8;
 
 @ ?
 @d CREL_OP_NONE			000
@@ -546,8 +626,8 @@ handleRelocationDirectory(uint8_t *block, int len) {
 @d CREL_OP_FETCH_CONSTANT	020
 @<Сложная ссылка@>=
 	PRINTVERB(2, "      Disp: %o.\n        ", entry->disp);
-	for (i += 2; block[i] != CREL_OP_STORE_RESULT; ++i) {
-		switch (block[i]) {
+	for (RLD_i += 2; block[RLD_i] != CREL_OP_STORE_RESULT; ++RLD_i) {
+		switch (block[RLD_i]) {
 			case CREL_OP_NONE:
 				break;
 			case CREL_OP_ADDITION:
@@ -580,23 +660,23 @@ handleRelocationDirectory(uint8_t *block, int len) {
 			case CREL_OP_STORE_RESULT_DISP:
 				break;
 			case CREL_OP_FETCH_GLOBAL:
-				++i;
-				value = (uint16_t *)(block + i);
+				++RLD_i;
+				value = (uint16_t *)(block + RLD_i);
 				fromRadix50(value[0], gname);
 				fromRadix50(value[1], gname + 3);
-				i += 3;
+				RLD_i += 3;
 				PRINTVERB(2, "%s ", gname);
 				break;
 			case CREL_OP_FETCH_RELOCABLE:
-				value = (uint16_t *)(block + i + 2);
-				PRINTVERB(2, "sect:%o/%o ", block[i + 1],
+				value = (uint16_t *)(block + RLD_i + 2);
+				PRINTVERB(2, "sect:%o/%o ", block[RLD_i + 1],
 					value[0]);
-				i += 3;	
+				RLD_i += 3;	
 				break;
 			case CREL_OP_FETCH_CONSTANT:
-				++i;
-				value = (uint16_t *)(block + i);
-				++i;
+				++RLD_i;
+				value = (uint16_t *)(block + RLD_i);
+				++RLD_i;
 				PRINTVERB(2, "%o ", *value);
 				break;
 			default :
@@ -604,7 +684,7 @@ handleRelocationDirectory(uint8_t *block, int len) {
 				return;
 		}
 	}
-	++i;
+	++RLD_i;
 	PRINTVERB(2, "\n");
 
 @ @<Обработать глобальные символы и ссылки@>=
@@ -614,10 +694,10 @@ handleGlobalSymbol(entry);
 handleProgramSection(entry);
 
 @ @<Обработать секцию TXT@>=
-handleTextSection(block_body[current_block]);
+handleTextSection(block_body);
 
 @ @<Обработать секцию перемещен...@>=
-handleRelocationDirectory(block_body[current_block], block_len);
+handleRelocationDirectory(block_body, block_len);
 
 @ @<Глобальные...@>=
 static void handleGlobalSymbol(GSD_Entry *);
