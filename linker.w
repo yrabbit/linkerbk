@@ -312,7 +312,7 @@ handleGlobalSymbol(GSD_Entry *entry) {
 	char name[7];
 @ @<Вывод таблицы глобальных символов@>=
 	if (config.verbosity >= 1) {
-		PRINTVERB(1, "Global Definitions:\n");
+		PRINTVERB(1, "=Global Definitions:\n");
 		for(i = 0; i < NumGlobalDefs; ++i) {
 			fromRadix50(GSymDef[i].name[0], name);
 			fromRadix50(GSymDef[i].name[1], name + 3);
@@ -407,10 +407,11 @@ handleTextSection(uint8_t *block, unsigned int len) {
 @ @<Данные программы...@>=
 	char sect_name[7];
 @ @<Очистка каталога секций@>=
+	PRINTVERB(1, "=Sections:\n");
 	for (i = 0; i < NumSections; ++i) {
 		fromRadix50(SectDir[i].name[0], sect_name);
 		fromRadix50(SectDir[i].name[1], sect_name + 3);
-		PRINTVERB(2, "free section: %s, addr: %p, len: %o, min addr: %o,"
+		PRINTVERB(1, "%s, addr: %p, len: %o, min addr: %o,"
 			" current start: %o\n", sect_name,
 		SectDir[i].text, SectDir[i].len, SectDir[i].min_addr,
 		SectDir[i].start);
