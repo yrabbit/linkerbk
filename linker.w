@@ -32,19 +32,20 @@ main(int argc, char *argv[])
 	int i;
 
 	@<Разобрать командную строку@>@;
-	@<Создаём файл результата@>@;
 	@<Инициализация каталога секций@>@;
+	@<Инициализация таблицы глобальных символов@>@;
 
 	/* Поочередно обрабатываем все заданные объектные файлы */
 	cur_input = 0;
 	while ((objname = config.objnames[cur_input]) != NULL) {
 		@<Открыть объектный файл@>@;
-		handle_one_file(fresult, fobj);
+		handle_one_file(fobj);
 		fclose(fobj);
 		++cur_input;
 	}
 	@<Очистка каталога секций@>@;
-	fclose(fresult);
+	@<Вывод таблицы глобальных символов@>@;
+	@<Создаём файл результата@>@;
 	return(0);
 }
 
@@ -61,12 +62,22 @@ FILE *fobj, *fresult;
 		return(ERR_CANTOPEN);
 	}
 
-@ @<Создаём файл результата@>=
+@ По заданному в командной строке имени создаётся файл с программной секцией,
+для которой указан адрес запуска. Остальные секции ненулевой длины планируется
+писать в дополнительные файлы (оверлеи).
+@<Создаём файл результата@>=
 	fresult = fopen(config.output_filename, "w");
 	if (fresult == NULL) {
 		PRINTERR("Can't create %s\n", config.output_filename);
 		return(ERR_CANTCREATE);
 	}
+	for (i = 0; i < NumSections; ++i) {
+		if (SectDir[i].transfer_addr == 1 || SectDir[i].len == 0) 
+			continue;
+		fwrite(SectDir[i].text + SectDir[i].min_addr, 
+			SectDir[i].len - SectDir[i].min_addr, 1, fresult);
+	}
+	fclose(fresult);
 
 @* Обработка объектного файла.
 
@@ -79,14 +90,14 @@ FILE *fobj, *fresult;
 typedef struct _BinaryBlock {
 	uint8_t	one;	/* must be 1 */
 	uint8_t	zero;	/* must be 0 */
-	uint8_t len[2]; /* length of block */
+	uint16_t len; /* length of block */
 } BinaryBlock;
 
 
 @ Обработать один объектный файл.
 @c
 static void
-handle_one_file(FILE *fresult, FILE *fobj) {
+handle_one_file(FILE *fobj) {
 	BinaryBlock obj_header;
 	int first_byte;
 	unsigned int block_len;
@@ -105,7 +116,7 @@ handle_one_file(FILE *fresult, FILE *fobj) {
 			break;
 		}
 		if (obj_header.zero != 0) continue;
-		block_len = obj_header.len[0] + obj_header.len[1] * 256 - 4;
+		block_len = obj_header.len - 4;
 		PRINTVERB(2, "Binary block found. Length:%o\n", block_len);
 
 		/* Читаем тело блока с котрольной суммой */
@@ -158,6 +169,7 @@ static uint8_t block_body[65536 + 1];
 		  block_body[0], config.objnames[cur_input]);
 	}
 
+@* GSD.
 @ Разбор блока GSD~---~Global Symbol Directory (каталог глобальных символов). Он
 содержит всю информацию, необходимую линковщику для присваивания адресов
 глобальным символам и выделения памяти.
@@ -182,7 +194,7 @@ typedef struct _GSD_Entry {
 
 @ @c
 void handle_GSD(int len) {
-	int i;
+	int i, sect;
 	GSD_Entry *entry;
 	char name[7];
 
@@ -208,6 +220,7 @@ void handle_GSD(int len) {
 			case GSD_TRANFER_ADDRESS:
 				/* Адрес запуска программы */
 				PRINTVERB(2, "TransferAddress, offset:%o.\n", entry->value);
+				@<Установить адрес запуска@>@;
 				break;
 			case GSD_GLOBAL_SYMBOL_NAME:
 				/* Определение/ссылка на глобольный адрес */
@@ -242,12 +255,37 @@ void handle_GSD(int len) {
 	fromRadix50(entry->name[1], name + 3);
 
 @ Разбор определения/ссылки на глобальный символ.
+@ Таблица глобальных символов. |addr| содержит уже смещенный адрес относительно
+0.
+@d MAX_GLOBALS 512
+@<Собственные типы данных...@>=
+typedef struct _GSymDefEntry {
+	uint16_t name[2];	
+	uint8_t	flags;
+	uint8_t	 sect; /* Номер секции, в которой определен глобальный символ */
+	uint16_t addr; /* Адрес символа в секции */
+} GSymDefEntry;
+
+@ @<Глобальные переменные...@>=
+static GSymDefEntry GSymDef[MAX_GLOBALS];
+static int NumGlobalDefs;
+
+@ @<Инициализация таблицы глобальных символов@>=
+	NumGlobalDefs = 0;
+
+@
 @d GLOBAL_WEAK_MASK	  001 // 00000001b
 @d GLOBAL_DEFINITION_MASK 010 // 00001000b
 @d GLOBAL_RELOCATION_MASK 040 // 00100000b
 @c
 static void
 handleGlobalSymbol(GSD_Entry *entry) {
+	GSymDef[NumGlobalDefs].name[0] = entry->name[0];
+	GSymDef[NumGlobalDefs].name[1] = entry->name[1];
+	GSymDef[NumGlobalDefs].flags = entry->flags;
+	GSymDef[NumGlobalDefs].sect = CurSect;
+	GSymDef[NumGlobalDefs].addr = SectDir[CurSect].start + entry->value;
+	++NumGlobalDefs;
 	if (config.verbosity >= 2) {
 		PRINTVERB(2, "        Flags: ");
 		if (entry->flags & GLOBAL_WEAK_MASK) {
@@ -268,6 +306,20 @@ handleGlobalSymbol(GSD_Entry *entry) {
 	}	
 }
 
+@ @<Данные программы...@>=
+	char name[7];
+@ @<Вывод таблицы глобальных символов@>=
+	if (config.verbosity >= 1) {
+		PRINTVERB(1, "Global Definitions:\n");
+		for(i = 0; i < NumGlobalDefs; ++i) {
+			fromRadix50(GSymDef[i].name[0], name);
+			fromRadix50(GSymDef[i].name[1], name + 3);
+			fromRadix50(SectDir[GSymDef[i].sect].name[0], sect_name);
+			fromRadix50(SectDir[GSymDef[i].sect].name[1], sect_name + 3);
+			PRINTVERB(1, "%s: %s/%o\n", name, sect_name,
+			GSymDef[i].addr);
+		}	
+	}
 @ Разбор программной секции. Данные о секциях хранятся в каталоге секций.
 @d MAX_PROG_SECTIONS 254
 @<Собственные типы...@>=
@@ -275,12 +327,14 @@ typedef struct _SectionDirEntry {
 	uint16_t name[2];	// Имя в Radix50
 	uint8_t	 flags;	// Флаги секции
 	uint16_t start;		// Смещение секции для текущего модуля
-	uint16_t min_addr;  // Минимальный адрес, с которого расположены данные
+	int32_t min_addr;  // Минимальный адрес, с которого расположены данные
 	uint16_t len;	// Длина секции
+	uint16_t transfer_addr; // Адрес старта (1 --- секция не стартовая)
+	uint16_t last_load_addr; // Адрес последнего загруженного блока TEXT
 	uint8_t *text;	// Адрес блока памяти для текста секции
 } SectionDirEntry;
 @ @<Глобальные переменные...@>=
-static SectionDirEntry SectionDir[MAX_PROG_SECTIONS];
+static SectionDirEntry SectDir[MAX_PROG_SECTIONS];
 static int NumSections;
 @
 @d PSECT_SAVE_MASK	  0001	// 00000001b
@@ -292,63 +346,74 @@ static int NumSections;
 @c
 static void
 handleProgramSection(GSD_Entry *entry) {
-	int sec_num;
 	@<Вывести отладочную информацию по секциям@>@;
-	sec_num = findSection(entry->name);
-	PRINTVERB(2, "find section %d\n", sec_num);
-	if (sec_num == -1) {
+	CurSect = findSection(entry->name);
+	PRINTVERB(2, "find section %d\n", CurSect);
+	if (CurSect == -1) {
 		@<Добавить программную секцию@>@;
 	} else {
 		// Изменить смещение секции в модуле
-		SectionDir[sec_num].start += SectionDir[sec_num].len;
-		SectionDir[sec_num].len += entry->value;
+		SectDir[CurSect].start += SectDir[CurSect].len;
+		SectDir[CurSect].len += entry->value;
 	}
 }
 
 @ @<Глобальные переменные...@>=
-static int CurrentSection;
+static int CurSect;
 
-@ Переключается текущая секция и изменяется позиция, с которой будут размещаться
-секции |TEXT|.
+@ Переключается текущая секция.
 @<Установка текущей секции и позиции@>=
 	const_entry = (RLD_Const_Entry *) entry;
 	fromRadix50(entry->value[0], gname);
 	fromRadix50(entry->value[1], gname + 3);
 	PRINTVERB(2, "      Name: %s, +Const: %o.\n", gname,
 		const_entry->constant);
-	CurrentSection = findSection(entry->value);
+	CurSect = findSection(entry->value);
+	if (SectDir[CurSect].min_addr == -1 ||
+		SectDir[CurSect].min_addr > (const_entry->constant +
+			SectDir[CurSect].start)) {
+		SectDir[CurSect].min_addr = const_entry->constant +
+			SectDir[CurSect].start;
+	}
 	RLD_i += 8;
 
-@ Обработать секцию Text. Содержимое добавляется к текущей секции
-|CurrentSection|.
+@ Адрес запуска, равный единице игнорируется.
+@ @<Установить адрес запуска@>=
+	sect = findSection(entry->name);
+	SectDir[sect].transfer_addr = entry->value;
+@ Обработать секцию |TEXT|. Содержимое добавляется к текущей секции
+|CurSect|. Поскольку секции |TEXT| могут следовать друг за другом, и лишь к
+последней из них применяется секция настройки адресов, то запоминаем адрес, с
+которого была загружена последняя секция |TEXT|.
 @c
 static void 
-handleTextSection(uint8_t *block) {
+handleTextSection(uint8_t *block, unsigned int len) {
 	uint16_t addr;
 
 	addr = block[2] + block[3] * 256;
 	PRINTVERB(2, "  Load address: %o, Current section: %d.\n", addr,
-	CurrentSection);
-
+	CurSect);
+	memcpy(SectDir[CurSect].text + SectDir[CurSect].start + addr, block + 4, len - 4);
+	SectDir[CurSect].last_load_addr = SectDir[CurSect].start + addr;
 }
 
 @
 @<Инициализация каталога секций@>=
 	NumSections = 0;
-	memset(SectionDir, 0, sizeof(SectionDir));
+	memset(SectDir, 0, sizeof(SectDir));
 
 @ @<Данные программы...@>=
 	char sect_name[7];
 @ @<Очистка каталога секций@>=
 	for (i = 0; i < NumSections; ++i) {
-		fromRadix50(SectionDir[i].name[0], sect_name);
-		fromRadix50(SectionDir[i].name[1], sect_name + 3);
+		fromRadix50(SectDir[i].name[0], sect_name);
+		fromRadix50(SectDir[i].name[1], sect_name + 3);
 		PRINTVERB(2, "free section: %s, addr: %p, len: %o, min addr: %o,"
 			" current start: %o\n", sect_name,
-		SectionDir[i].text, SectionDir[i].len, SectionDir[i].min_addr,
-		SectionDir[i].start);
-		if (SectionDir[i].text != NULL)
-			free(SectionDir[i].text);
+		SectDir[i].text, SectDir[i].len, SectDir[i].min_addr,
+		SectDir[i].start);
+		if (SectDir[i].text != NULL)
+			free(SectDir[i].text);
 	}
 	
 @ Найти программную секцию по имени.
@@ -359,7 +424,7 @@ findSection(uint16_t *name) {
 
 	found = -1;
 	for (i = 0; i < NumSections; ++i) {
-		if (SectionDir[i].name[0] == name[0] && SectionDir[i].name[1] ==
+		if (SectDir[i].name[0] == name[0] && SectDir[i].name[1] ==
 		name[1]) {
 			found = i;
 			break;
@@ -368,11 +433,22 @@ findSection(uint16_t *name) {
 
 	return(found);
 }
-@ @<Добавить программную секцию@>=
-	SectionDir[NumSections].name[0] = entry->name[0];
-	SectionDir[NumSections].name[1] = entry->name[1];
-	SectionDir[NumSections].flags = entry->flags;
-	SectionDir[NumSections].len = entry->value;
+@  Память выделяется под все секции, даже те, которые имеют нулевую длину.
+@d DEFAULT_SECTION_LEN 65536
+@<Добавить программную секцию@>=
+	SectDir[NumSections].name[0] = entry->name[0];
+	SectDir[NumSections].name[1] = entry->name[1];
+	SectDir[NumSections].flags = entry->flags;
+	SectDir[NumSections].len = entry->value;
+	/* Если секции при слиянии выравниваются на слово, то изменить длину */
+	if (!(entry->flags & PSECT_TYPE_MASK)) {
+		if(SectDir[NumSections].len & 1)
+			++SectDir[NumSections].len;
+	}
+	SectDir[NumSections].min_addr = -1;
+	SectDir[NumSections].transfer_addr = 1;
+	SectDir[NumSections].text = (uint8_t*)calloc(1, DEFAULT_SECTION_LEN);
+	CurSect = NumSections;
 	++NumSections;
 
 @ @<Глобальные переменны...@>=
@@ -414,8 +490,8 @@ static int findSection(uint16_t *);
 		}
 	}
 @ Блоки каталогов перемещений содержат информацию, которая нужна линковщику для
-корректировки ссылок в предыдущем блоке TEXT. Каждый модуль должеен иметь хотя
-бы один блок RLD, который расположен впереди всех блоков TEXT, его
+корректировки ссылок в предыдущем блоке |TEXT|. Каждый модуль должеен иметь хотя
+бы один блок RLD, который расположен впереди всех блоков |TEXT|, его
 задача~---~описать текущую PSECT и её размещение.
 
 Каталог перемещений состоит из записей:
@@ -694,7 +770,7 @@ handleGlobalSymbol(entry);
 handleProgramSection(entry);
 
 @ @<Обработать секцию TXT@>=
-handleTextSection(block_body);
+handleTextSection(block_body, block_len);
 
 @ @<Обработать секцию перемещен...@>=
 handleRelocationDirectory(block_body, block_len);
@@ -702,7 +778,7 @@ handleRelocationDirectory(block_body, block_len);
 @ @<Глобальные...@>=
 static void handleGlobalSymbol(GSD_Entry *);
 static void handleProgramSection(GSD_Entry *);
-static void handleTextSection(uint8_t *);
+static void handleTextSection(uint8_t *, unsigned int);
 static void handleRelocationDirectory(uint8_t *, int);
 
 @* Вспомогательные функции.
@@ -734,7 +810,7 @@ static void fromRadix50(int n, char *name) {
 }
 
 @ @<Глобальные...@>=
-static void handle_one_file(FILE *, FILE *);
+static void handle_one_file(FILE *);
 static void handle_GSD(int);
 static void fromRadix50(int, char*);
 
