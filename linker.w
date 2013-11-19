@@ -1,5 +1,5 @@
 % vim: set ai textwidth=80:
-\input cwebmac %-ru
+\input macro
 
 \def\version{0.1}
 \font\twentycmcsc=cmcsc10 at 20 truept
@@ -43,9 +43,9 @@ main(int argc, char *argv[])
 		fclose(fobj);
 		++cur_input;
 	}
-	@<Очистка каталога секций@>@;
 	@<Вывод таблицы глобальных символов@>@;
 	@<Создаём файл результата@>@;
+	@<Очистка каталога секций@>@;
 	return(0);
 }
 
@@ -280,12 +280,14 @@ static int NumGlobalDefs;
 @c
 static void
 handleGlobalSymbol(GSD_Entry *entry) {
-	GSymDef[NumGlobalDefs].name[0] = entry->name[0];
-	GSymDef[NumGlobalDefs].name[1] = entry->name[1];
-	GSymDef[NumGlobalDefs].flags = entry->flags;
-	GSymDef[NumGlobalDefs].sect = CurSect;
-	GSymDef[NumGlobalDefs].addr = SectDir[CurSect].start + entry->value;
-	++NumGlobalDefs;
+	if (entry->flags & GLOBAL_DEFINITION_MASK) {
+		GSymDef[NumGlobalDefs].name[0] = entry->name[0];
+		GSymDef[NumGlobalDefs].name[1] = entry->name[1];
+		GSymDef[NumGlobalDefs].flags = entry->flags;
+		GSymDef[NumGlobalDefs].sect = CurSect;
+		GSymDef[NumGlobalDefs].addr = SectDir[CurSect].start + entry->value;
+		++NumGlobalDefs;
+	}
 	if (config.verbosity >= 2) {
 		PRINTVERB(2, "        Flags: ");
 		if (entry->flags & GLOBAL_WEAK_MASK) {
