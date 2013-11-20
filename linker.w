@@ -34,6 +34,7 @@ main(int argc, char *argv[])
 	@<Разобрать командную строку@>@;
 	@<Инициализация каталога секций@>@;
 	@<Инициализация таблицы глобальных символов@>@;
+	@<Инициализация списка ссылок без констант@>@;
 
 	/* Поочередно обрабатываем все заданные объектные файлы */
 	cur_input = 0;
@@ -46,6 +47,7 @@ main(int argc, char *argv[])
 	@<Вывод таблицы глобальных символов@>@;
 	@<Создаём файл результата@>@;
 	@<Очистка каталога секций@>@;
+	@<Освободить список ссылок без констант@>@;
 	return(0);
 }
 
@@ -492,6 +494,93 @@ static int findSection(uint16_t *);
 			PRINTVERB(2, "Iref.\n");
 		}
 	}
+
+@* Списки ссылок на глобальные символы.
+@ Есть три вида ссылок на глобальные символы: без добавления константы, с
+добавлением константы и сложная ссылка. Первые два вида имеют фиксированный
+(хотя и разный) размер, а третья~---~произвольный размер.
+
+Кусочки маленькие, поэтому попробуем не дергать операционку для выделения
+памяти, а используем линейные списки с хранением в массиве.
+
+@ Структура элемента списка для хранения ссылок без  константы.
+@d INITIAL_SIMPLE_REF_LIST_SIZE 100
+@<Собственные типы данных...@>=
+typedef struct _SimpleRefEntry {
+	uint16_t link; /* Поле связи */
+	uint8_t	type;
+	uint8_t	disp;
+	uint16_t name[2];
+} SimpleRefEntry;
+typedef struct _SimpleRefList {
+	uint16_t head;	/* Голова списка */
+	uint16_t avail;	/* Начало списка свободных блоков */
+	uint16_t poolmin;	/* Номер элемента --- нижней границы пула */
+	SimpleRefEntry *pool;	/* Массив для хранения списка */
+} SimpleRefList;
+
+@ @<Глобальные переменные...@>=
+static SimpleRefList SRefList;
+
+@ Добавляем новую ссылку в список
+@c
+static void
+add_simple_ref(RLD_Entry *ref) {
+	SimpleRefEntry *new_entry;
+	uint16_t new_index;
+
+	/* Если не хватило начального размера пула */
+	if (SRefList.poolmin == INITIAL_SIMPLE_REF_LIST_SIZE) {
+		PRINTERR("No memory for simple ref list");
+		return;
+	}
+	/* Если есть свободные блоки */
+	if (SRefList.avail != 0) {
+		new_index = SRefList.avail;
+		SRefList.avail = SRefList.pool[SRefList.avail].link;
+	} else {
+	/* Свободных блоков нет, используем пул */
+		new_index = SRefList.poolmin;
+		++SRefList.poolmin;
+	}
+	new_entry = SRefList.pool + new_index;
+	new_entry->link = SRefList.head;
+	SRefList.head = new_index;
+
+	/* Собственно данные ссылки */
+	new_entry->name[0] = ref->value[0];
+	new_entry->name[1] = ref->value[1];
+	new_entry->disp = ref->disp;
+	new_entry->type = ref->cmd.type;
+}
+
+@ |poolmin| устанавливаем равным 1, так как для данной системы хранения ссылок
+нулевой элемент пула не используется, а его номер считается чем-то вроде NULL.
+@<Инициализация списка ссылок без констант...@>=
+	SRefList.pool = (SimpleRefEntry *)malloc(sizeof(SimpleRefEntry) *
+		INITIAL_SIMPLE_REF_LIST_SIZE);
+	SRefList.head = 0;
+	SRefList.avail = 0;
+	SRefList.poolmin = 1;
+
+@ @<Освободить список ссылок без констант...@>=
+	if (config.verbosity >= 2) {
+		PRINTVERB(2, "=Simple Refs:\nhead: %d, avail: %d, poolmin: %d\n",
+		SRefList.head, SRefList.avail, SRefList.poolmin);
+		for (i = SRefList.head; i != 0; i = SRefList.pool[i].link) {
+			fromRadix50(SRefList.pool[i].name[0], name);
+			fromRadix50(SRefList.pool[i].name[1], name + 3);
+			PRINTVERB(2, "i: %d, name: %s, disp: %o\n", i, name,
+			SRefList.pool[i].disp);
+		}
+	}
+	free(SRefList.pool);
+
+@ @<Глобальные переменные...@>=
+static void add_simple_ref(RLD_Entry *);
+
+
+@* Каталоги перемещений.
 @ Блоки каталогов перемещений содержат информацию, которая нужна линковщику для
 корректировки ссылок в предыдущем блоке |TEXT|. Каждый модуль должеен иметь хотя
 бы один блок RLD, который расположен впереди всех блоков |TEXT|, его
@@ -575,12 +664,12 @@ handleRelocationDirectory(uint8_t *block, int len) {
 				@<Изменение текущей позиции@>@;
 				break;
 			case RLD_CMD_PROGRAM_LIMITS:
-				@<Установка пределов@>@;
 				PRINTVERB(2, "Program Limits.\n");
+				@<Установка пределов@>@;
 				break;
 			case RLD_CMD_PSECT_RELOCATION:
-				@<Прямая ссылка на секцию@>@;
 				PRINTVERB(2, "PSect Relocation.\n");
+				@<Прямая ссылка на секцию@>@;
 				break;
 			case RLD_CMD_PSECT_DISPLACED_RELOCATION:
 				PRINTVERB(2, "PSect Displaced Relocation.\n");
@@ -619,6 +708,7 @@ handleRelocationDirectory(uint8_t *block, int len) {
 	fromRadix50(entry->value[0], gname);
 	fromRadix50(entry->value[1], gname + 3);
 	PRINTVERB(2, "      Disp: %o, Name: %s.\n", entry->disp, gname);
+	add_simple_ref(entry);
 	RLD_i += 6;
 @ ?
 @<Косвенная ссылка на глобальный символ@>=
