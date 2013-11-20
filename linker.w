@@ -513,7 +513,6 @@ typedef struct _SimpleRefEntry {
 	uint16_t name[2];
 } SimpleRefEntry;
 typedef struct _SimpleRefList {
-	uint16_t head;	/* Голова списка */
 	uint16_t avail;	/* Начало списка свободных блоков */
 	uint16_t poolmin;	/* Номер элемента --- нижней границы пула */
 	SimpleRefEntry *pool;	/* Массив для хранения списка */
@@ -544,8 +543,8 @@ add_simple_ref(RLD_Entry *ref) {
 		++SRefList.poolmin;
 	}
 	new_entry = SRefList.pool + new_index;
-	new_entry->link = SRefList.head;
-	SRefList.head = new_index;
+	new_entry->link = SRefList.pool[0].link;
+	SRefList.pool[0].link = new_index;
 
 	/* Собственно данные ссылки */
 	new_entry->name[0] = ref->value[0];
@@ -559,15 +558,14 @@ add_simple_ref(RLD_Entry *ref) {
 @<Инициализация списка ссылок без констант...@>=
 	SRefList.pool = (SimpleRefEntry *)malloc(sizeof(SimpleRefEntry) *
 		INITIAL_SIMPLE_REF_LIST_SIZE);
-	SRefList.head = 0;
 	SRefList.avail = 0;
 	SRefList.poolmin = 1;
 
 @ @<Освободить список ссылок без констант...@>=
 	if (config.verbosity >= 2) {
-		PRINTVERB(2, "=Simple Refs:\nhead: %d, avail: %d, poolmin: %d\n",
-		SRefList.head, SRefList.avail, SRefList.poolmin);
-		for (i = SRefList.head; i != 0; i = SRefList.pool[i].link) {
+		PRINTVERB(2, "=Simple Refs:\n avail: %d, poolmin: %d\n",
+		 SRefList.avail, SRefList.poolmin);
+		for (i = SRefList.pool[0].link; i != 0; i = SRefList.pool[i].link) {
 			fromRadix50(SRefList.pool[i].name[0], name);
 			fromRadix50(SRefList.pool[i].name[1], name + 3);
 			PRINTVERB(2, "i: %d, name: %s, disp: %o\n", i, name,
