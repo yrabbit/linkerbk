@@ -633,29 +633,27 @@ static uint16_t delSimpleRef(uint16_t);
 @c
 static int
 resolveGlobals(void) {
-	uint16_t ref, *dest_addr;
+	uint16_t ref, prev_ref, *dest_addr;
 	int global;
 	char name [7];
 
-	PRINTVERB(2, "resolve globals. [0].link: %d\n", SRefList.pool[0].link);
 	/* Ссылки без констант */
+	prev_ref = 0;
 	if (!simpleRefIsEmpty()) {
-		for (ref = SRefList.pool[0].link; ref != 0; ref =
-			SRefList.pool[ref].link) {
+		for (ref = SRefList.pool[0].link; ref != 0; prev_ref = ref, ref = SRefList.pool[ref].link) {
 			global = findGlobalSym(SRefList.pool[ref].name);
 			if (global == -1) {
 				continue;
 			}
-			fromRadix50(SRefList.pool[ref].name[0], name);
-			fromRadix50(SRefList.pool[ref].name[1], name + 3);
-			PRINTVERB(2, "try resolve %s.", name);
 			if (SRefList.pool[ref].type == RLD_CMD_GLOBAL_RELOCATION) {
 				/* Прямая ссылка */
-				PRINTVERB(2, " global: %d, sect: %d, disp: %o, addr: %o\n", global, SRefList.pool[ref].sect,
-					SRefList.pool[ref].disp, GSymDef[global].addr);
 				dest_addr =
 				(uint16_t*)(SectDir[SRefList.pool[ref].sect].text + SRefList.pool[ref].disp);
 				*dest_addr = GSymDef[global].addr;
+				SRefList.pool[prev_ref].link = delSimpleRef(ref);
+				/* При удалении |ref| становится уже членом другого списка,
+				 * поэтому стоит вернуться на шаг назад */
+				ref = prev_ref;
 			}
 		}
 	}
