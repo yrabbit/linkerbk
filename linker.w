@@ -40,7 +40,7 @@ main(int argc, char *argv[])
 	cur_input = 0;
 	while ((objname = config.objnames[cur_input]) != NULL) {
 		@<Открыть объектный файл@>@;
-		handle_one_file(fobj);
+		handleOneFile(fobj);
 		fclose(fobj);
 		++cur_input;
 	}
@@ -99,7 +99,7 @@ typedef struct _BinaryBlock {
 @ Обработать один объектный файл.
 @c
 static void
-handle_one_file(FILE *fobj) {
+handleOneFile(FILE *fobj) {
 	BinaryBlock obj_header;
 	int first_byte;
 	unsigned int block_len;
@@ -185,7 +185,7 @@ static uint8_t block_body[65536 + 1];
 @d GDS_IDENT				6
 @d GSD_MAPPED_ARRAY			7
 @<Разобрать GSD@>=
-	handle_GSD(block_len);
+	handleGSD(block_len);
 @ @<Собственные типы...@>=
 typedef struct _GSD_Entry {
 	uint16_t name[2];
@@ -195,7 +195,8 @@ typedef struct _GSD_Entry {
 } GSD_Entry;
 
 @ @c
-void handle_GSD(int len) {
+static void 
+handleGSD(int len) {
 	int i, sect;
 	GSD_Entry *entry;
 	char name[7];
@@ -267,6 +268,7 @@ typedef struct _GSymDefEntry {
 	uint8_t	 sect; /* Номер секции, в которой определен глобальный символ */
 	uint16_t addr; /* Адрес символа в секции */
 } GSymDefEntry;
+
 
 @ @<Глобальные переменные...@>=
 static GSymDefEntry GSymDef[MAX_GLOBALS];
@@ -520,18 +522,18 @@ typedef struct _SimpleRefList {
 
 @ @<Глобальные переменные...@>=
 static SimpleRefList SRefList;
-static int simple_ref_is_empty(void);
+static int simpleRefIsEmpty(void);
 @ 
 @c
 static int
-simple_ref_is_empty(void) {
+simpleRefIsEmpty(void) {
 	return(SRefList.pool[0].link == 0);
 }
 
 @ Добавляем новую ссылку в список
 @c
 static void
-add_simple_ref(RLD_Entry *ref) {
+addSimpleRef(RLD_Entry *ref) {
 	SimpleRefEntry *new_entry;
 	uint16_t new_index;
 
@@ -565,7 +567,7 @@ add_simple_ref(RLD_Entry *ref) {
 вызывающей функции: записать это значение в поле связи предыдущего элемента.
 @c
 static uint16_t 
-del_simple_ref(uint16_t ref_i) {
+delSimpleRef(uint16_t ref_i) {
 	uint16_t link;
 
 	link = SRefList.pool[ref_i].link;
@@ -600,21 +602,25 @@ del_simple_ref(uint16_t ref_i) {
 	free(SRefList.pool);
 
 @ @<Глобальные переменные...@>=
-static void add_simple_ref(RLD_Entry *);
-static uint16_t del_simple_ref(uint16_t);
+static void addSimpleRef(RLD_Entry *);
+static uint16_t delSimpleRef(uint16_t);
 
 @* Разрешение ссылок на глобальные символы.
 @ Пробегаем набранные списки ссылок на глобальные символы и смотрим нет ли уже
 возможности разрешить ссылки. Возвращает 0, если неразрешенных ссылок нет.
 @c
 static int
-resolve_globals(void) {
-	return (simple_ref_is_empty() && 1);
+resolveGlobals(void) {
+
+	/* Сыылки без констант */
+	if (!simpleRefIsEmpty()) {
+	}
+	return (simpleRefIsEmpty() && 1);
 }
 
 
 @ @<Глобальные переменные...@>=
-static int resolve_globals(void);
+static int resolveGlobals(void);
 
 @* Каталоги перемещений.
 @ Блоки каталогов перемещений содержат информацию, которая нужна линковщику для
@@ -744,7 +750,7 @@ handleRelocationDirectory(uint8_t *block, int len) {
 	fromRadix50(entry->value[0], gname);
 	fromRadix50(entry->value[1], gname + 3);
 	PRINTVERB(2, "      Disp: %o, Name: %s.\n", entry->disp, gname);
-	add_simple_ref(entry);
+	addSimpleRef(entry);
 	RLD_i += 6;
 @ ?
 @<Косвенная ссылка на глобальный символ@>=
@@ -939,8 +945,8 @@ static void fromRadix50(int n, char *name) {
 }
 
 @ @<Глобальные...@>=
-static void handle_one_file(FILE *);
-static void handle_GSD(int);
+static void handleOneFile(FILE *);
+static void handleGSD(int);
 static void fromRadix50(int, char*);
 
 @* Разбор параметров командной строки.
