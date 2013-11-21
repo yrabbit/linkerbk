@@ -50,7 +50,7 @@ main(int argc, char *argv[])
 	@<Вывод таблицы глобальных символов@>@;
 	@<Создаём файл результата@>@;
 	@<Очистка каталога секций@>@;
-	@<Освободить список ссылок без констант@>@;
+	@<Освободить список ссылок@>@;
 	return(0);
 }
 
@@ -534,6 +534,7 @@ typedef struct _SimpleRefEntry {
 	uint8_t	type;
 	uint8_t	sect;	/* Номер секции */
 	uint16_t	disp;	/* Смещение в секции уже учитывающее адрес самой сецкии */
+	uint16_t	constant;
 	uint16_t name[2];
 } SimpleRefEntry;
 typedef struct _SimpleRefList {
@@ -555,7 +556,7 @@ simpleRefIsEmpty(void) {
 @ Добавляем новую ссылку в список
 @c
 static void
-addSimpleRef(RLD_Entry *ref) {
+addSimpleRef(RLD_Entry *ref) {@|
 	SimpleRefEntry *new_entry;
 	uint16_t new_index;
 
@@ -583,6 +584,10 @@ addSimpleRef(RLD_Entry *ref) {
 	new_entry->disp = ref->disp - 4 + SectDir[CurSect].last_load_addr;
 	new_entry->sect = CurSect;
 	new_entry->type = ref->cmd.type;
+	if (new_entry->type == RLD_CMD_GLOBAL_ADDITIVE_DISPLACED_RELOCATION ||
+		new_entry->type == RLD_CMD_GLOBAL_ADDITIVE_RELOCATION) {
+		new_entry->constant = ((RLD_Const_Entry*)ref)->constant;
+	}
 }
 
 @ Удаляем ссылку из списка. Возвращает поле связи удалямого элемента. Задача
@@ -608,7 +613,7 @@ delSimpleRef(uint16_t ref_i) {
 	SRefList.avail = 0;
 	SRefList.poolmin = 1;
 
-@ @<Освободить список ссылок без констант...@>=
+@ @<Освободить список ссылок...@>=
 	if (config.verbosity >= 2) {
 		PRINTVERB(2, "=Simple Refs:\n avail: %d, poolmin: %d\n",
 		 SRefList.avail, SRefList.poolmin);
@@ -638,29 +643,86 @@ resolveGlobals(void) {
 	char name [7];
 
 	/* Ссылки без констант */
-	prev_ref = 0;
-	if (!simpleRefIsEmpty()) {
+	prev_ref = 0;@|
+	if (!simpleRefIsEmpty()) {@|
 		for (ref = SRefList.pool[0].link; ref != 0; prev_ref = ref, ref = SRefList.pool[ref].link) {
 			global = findGlobalSym(SRefList.pool[ref].name);
 			if (global == -1) {
 				continue;
 			}
-			if (SRefList.pool[ref].type == RLD_CMD_GLOBAL_RELOCATION) {
+			if (SRefList.pool[ref].type ==
+			RLD_CMD_GLOBAL_RELOCATION) {@|
 				/* Прямая ссылка */
-				dest_addr =
-				(uint16_t*)(SectDir[SRefList.pool[ref].sect].text + SRefList.pool[ref].disp);
-				*dest_addr = GSymDef[global].addr;
+				@<Разрешить прямую ссылку@>@;@|
+				/* При удалении |ref| стоит вернуться на шаг назад */
 				SRefList.pool[prev_ref].link = delSimpleRef(ref);
-				/* При удалении |ref| становится уже членом другого списка,
-				 * поэтому стоит вернуться на шаг назад */
 				ref = prev_ref;
+				continue;
+			}
+			if (SRefList.pool[ref].type ==
+			RLD_CMD_GLOBAL_DISPLACED_RELOCATION) {@|
+				/* Косвенная ссылка */
+				@<Разрешить косвенную ссылку@>@;@|
+				SRefList.pool[prev_ref].link =
+					delSimpleRef(ref);@|
+				/* При удалении |ref| стоит вернуться на шаг назад */
+				ref = prev_ref;
+				continue;
+			}
+			if (SRefList.pool[ref].type ==
+			RLD_CMD_GLOBAL_ADDITIVE_RELOCATION) {@|
+				/* Прямая ссылка со смещением */
+				@<Разрешить смещенную прямую ссылку@>@;@|
+				SRefList.pool[prev_ref].link =
+					delSimpleRef(ref);@|
+				/* При удалении |ref| стоит вернуться на шаг назад */
+				ref = prev_ref;
+				continue;
+			}
+			if (SRefList.pool[ref].type ==
+			RLD_CMD_GLOBAL_ADDITIVE_DISPLACED_RELOCATION) {@|
+				/* Косвенная ссылка со смещением */
+				@<Разрешить смещенную косвенную ссылку@>@;@|
+				SRefList.pool[prev_ref].link =
+					delSimpleRef(ref);@|
+				/* При удалении |ref| стоит вернуться на шаг назад */
+				ref = prev_ref;
+				continue;
 			}
 		}
 	}
 	return (simpleRefIsEmpty() && 1);
 }
 
+@ Для разрешения прямой ссылки записываем адрес ссылки поле операнда.
+@<Разрешить прямую ссылку@>=
+	dest_addr =
+	(uint16_t*)(SectDir[SRefList.pool[ref].sect].text + SRefList.pool[ref].disp);
+	*dest_addr = GSymDef[global].addr;
 
+@ Для разрешения прямой ссылки со смещение записываем адрес ссылки + константа в
+поле операнда.
+@<Разрешить смещенную прямую ссылку@>=
+	dest_addr =
+	(uint16_t*)(SectDir[SRefList.pool[ref].sect].text + SRefList.pool[ref].disp);
+	*dest_addr = GSymDef[global].addr +
+					SRefList.pool[ref].constant;
+
+@ Для разрешения косвенной ссылки записываем смещение от поля операнда в поле
+операнда.
+@<Разрешить косвенную ссылку@>=
+	dest_addr =
+	(uint16_t*)(SectDir[SRefList.pool[ref].sect].text + SRefList.pool[ref].disp);
+	*dest_addr = GSymDef[global].addr - (SRefList.pool[ref].disp + 2);
+
+@ Для разрешения косвенной ссылки со смещением записываем смещение от поля
+операнда + константа в поле
+операнда.
+@<Разрешить смещенную косвенную ссылку@>=
+	dest_addr =
+	(uint16_t*)(SectDir[SRefList.pool[ref].sect].text + SRefList.pool[ref].disp);
+	*dest_addr = GSymDef[global].addr - (SRefList.pool[ref].disp + 2) +
+					SRefList.pool[ref].constant;
 @ @<Глобальные переменные...@>=
 static int resolveGlobals(void);
 
@@ -707,7 +769,7 @@ handleRelocationDirectory(uint8_t *block, int len) {
 	RLD_Entry *entry;
 	RLD_Const_Entry *const_entry;
 	char gname[7];
-	uint16_t *value;
+	uint16_t *value, *dest_addr;
 	int RLD_i;
 
 	for (RLD_i = 2; RLD_i < len; ) {
@@ -779,44 +841,54 @@ handleRelocationDirectory(uint8_t *block, int len) {
 	}
 }
 
-@ ?
+@ 
 @<Прямая ссылка на абсолютный адрес@>=
 	PRINTVERB(2, "      Disp: %o, +Const: %o.\n", entry->disp, entry->value[0]);
+	dest_addr = (uint16_t*)(SectDir[CurSect].text +
+		SectDir[CurSect].last_load_addr + entry->disp - 4);
+	*dest_addr = SectDir[CurSect].start + entry->value[0];	
 	RLD_i += 4;
-@ ?
+@ 
 @<Косвенная ссылка на абсолютный адрес@>=
 	PRINTVERB(2, "      Disp: %o, +Const: %o.\n", entry->disp, entry->value[0]);
+	dest_addr = (uint16_t*)(SectDir[CurSect].text +
+		SectDir[CurSect].last_load_addr + entry->disp - 4);
+	*dest_addr = entry->value[0] - SectDir[CurSect].last_load_addr -
+		entry->disp + 4 - 2;	
 	RLD_i += 4;
-@ ?
+@ 
 @<Прямая ссылка на глобальный символ@>=
 	fromRadix50(entry->value[0], gname);
 	fromRadix50(entry->value[1], gname + 3);
 	PRINTVERB(2, "      Disp: %o, Name: %s.\n", entry->disp, gname);
 	addSimpleRef(entry);
 	RLD_i += 6;
-@ ?
+@ 
 @<Косвенная ссылка на глобальный символ@>=
 	fromRadix50(entry->value[0], gname);
 	fromRadix50(entry->value[1], gname + 3);
 	PRINTVERB(2, "      Disp: %o, Name: %s.\n", entry->disp, gname);
+	addSimpleRef(entry);
 	RLD_i += 6;
 
-@ ?
+@ 
 @<Прямая ссылка на смещенный глобальный символ@>=
 	const_entry = (RLD_Const_Entry *) entry;
 	fromRadix50(entry->value[0], gname);
 	fromRadix50(entry->value[1], gname + 3);
 	PRINTVERB(2, "      Disp: %o, Name: %s, +Const: %o.\n", entry->disp, gname,
 		const_entry->constant);
+	addSimpleRef(entry);	
 	RLD_i += 8;
 
-@ ?
+@ 
 @<Косвенная ссылка на смещенный глобальный символ@>=
 	const_entry = (RLD_Const_Entry *) entry;
 	fromRadix50(entry->value[0], gname);
 	fromRadix50(entry->value[1], gname + 3);
 	PRINTVERB(2, "      Disp: %o, Name: %s, +Const: %o.\n", entry->disp, gname,
 		const_entry->constant);
+	addSimpleRef(entry);	
 	RLD_i += 8;
 
 @ ?
