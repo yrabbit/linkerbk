@@ -29,7 +29,7 @@ main(int argc, char *argv[])
 {
 	@<Данные программы@>@;
 	const char *objname;
-	int i;
+	int i, all_resolved;
 
 	@<Разобрать командную строку@>@;
 	@<Инициализация каталога секций@>@;
@@ -38,9 +38,12 @@ main(int argc, char *argv[])
 
 	/* Поочередно обрабатываем все заданные объектные файлы */
 	cur_input = 0;
+	all_resolved = 1;
 	while ((objname = config.objnames[cur_input]) != NULL) {
 		@<Открыть объектный файл@>@;
 		handleOneFile(fobj);
+		/* Разрешаем глобальные ссылки */
+		all_resolved = resolveGlobals();
 		fclose(fobj);
 		++cur_input;
 	}
@@ -311,6 +314,25 @@ handleGlobalSymbol(GSD_Entry *entry) {
 		}
 	}	
 }
+
+@ Найти символ в таблице. -1~---~символ не найден.
+@c
+static int findGlobalSym(uint16_t *name) {
+	int found, i;
+
+	found = -1;
+	for (i = 0; i< NumGlobalDefs; ++i) {
+		if (name[0] == GSymDef[i].name[0] && name[1] == GSymDef[i].name[1]) {
+			found = i;
+			break;
+		}
+	}
+
+	return(found);
+}
+
+@ @<Глобальные переменные...@>=
+static int findGlobalSym(uint16_t *);
 
 @ @<Данные программы...@>=
 	char name[7];
@@ -611,9 +633,31 @@ static uint16_t delSimpleRef(uint16_t);
 @c
 static int
 resolveGlobals(void) {
+	uint16_t ref, *dest_addr;
+	int global;
+	char name [7];
 
-	/* Сыылки без констант */
+	PRINTVERB(2, "resolve globals. [0].link: %d\n", SRefList.pool[0].link);
+	/* Ссылки без констант */
 	if (!simpleRefIsEmpty()) {
+		for (ref = SRefList.pool[0].link; ref != 0; ref =
+			SRefList.pool[ref].link) {
+			global = findGlobalSym(SRefList.pool[ref].name);
+			if (global == -1) {
+				continue;
+			}
+			fromRadix50(SRefList.pool[ref].name[0], name);
+			fromRadix50(SRefList.pool[ref].name[1], name + 3);
+			PRINTVERB(2, "try resolve %s.", name);
+			if (SRefList.pool[ref].type == RLD_CMD_GLOBAL_RELOCATION) {
+				/* Прямая ссылка */
+				PRINTVERB(2, " global: %d, sect: %d, disp: %o, addr: %o\n", global, SRefList.pool[ref].sect,
+					SRefList.pool[ref].disp, GSymDef[global].addr);
+				dest_addr =
+				(uint16_t*)(SectDir[SRefList.pool[ref].sect].text + SRefList.pool[ref].disp);
+				*dest_addr = GSymDef[global].addr;
+			}
+		}
 	}
 	return (simpleRefIsEmpty() && 1);
 }
