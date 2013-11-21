@@ -352,7 +352,6 @@ static void
 handleProgramSection(GSD_Entry *entry) {
 	@<Вывести отладочную информацию по секциям@>@;
 	CurSect = findSection(entry->name);
-	PRINTVERB(2, "find section %d\n", CurSect);
 	if (CurSect == -1) {
 		@<Добавить программную секцию@>@;
 	} else {
@@ -509,7 +508,8 @@ static int findSection(uint16_t *);
 typedef struct _SimpleRefEntry {
 	uint16_t link; /* Поле связи */
 	uint8_t	type;
-	uint8_t	disp;
+	uint8_t	sect;	/* Номер секции */
+	uint16_t	disp;	/* Смещение в секции уже учитывающее адрес самой сецкии */
 	uint16_t name[2];
 } SimpleRefEntry;
 typedef struct _SimpleRefList {
@@ -520,6 +520,13 @@ typedef struct _SimpleRefList {
 
 @ @<Глобальные переменные...@>=
 static SimpleRefList SRefList;
+static int simple_ref_is_empty(void);
+@ 
+@c
+static int
+simple_ref_is_empty(void) {
+	return(SRefList.pool[0].link == 0);
+}
 
 @ Добавляем новую ссылку в список
 @c
@@ -549,8 +556,23 @@ add_simple_ref(RLD_Entry *ref) {
 	/* Собственно данные ссылки */
 	new_entry->name[0] = ref->value[0];
 	new_entry->name[1] = ref->value[1];
-	new_entry->disp = ref->disp;
+	new_entry->disp = ref->disp - 4 + SectDir[CurSect].last_load_addr;
+	new_entry->sect = CurSect;
 	new_entry->type = ref->cmd.type;
+}
+
+@ Удаляем ссылку из списка. Возвращает поле связи удалямого элемента. Задача
+вызывающей функции: записать это значение в поле связи предыдущего элемента.
+@c
+static uint16_t 
+del_simple_ref(uint16_t ref_i) {
+	uint16_t link;
+
+	link = SRefList.pool[ref_i].link;
+	SRefList.pool[ref_i].link = SRefList.avail;
+	SRefList.avail = ref_i;
+	
+	return(link);
 }
 
 @ |poolmin| устанавливаем равным 1, так как для данной системы хранения ссылок
@@ -558,6 +580,7 @@ add_simple_ref(RLD_Entry *ref) {
 @<Инициализация списка ссылок без констант...@>=
 	SRefList.pool = (SimpleRefEntry *)malloc(sizeof(SimpleRefEntry) *
 		INITIAL_SIMPLE_REF_LIST_SIZE);
+	SRefList.pool[0].link = 0;	
 	SRefList.avail = 0;
 	SRefList.poolmin = 1;
 
@@ -568,7 +591,9 @@ add_simple_ref(RLD_Entry *ref) {
 		for (i = SRefList.pool[0].link; i != 0; i = SRefList.pool[i].link) {
 			fromRadix50(SRefList.pool[i].name[0], name);
 			fromRadix50(SRefList.pool[i].name[1], name + 3);
-			PRINTVERB(2, "i: %d, name: %s, disp: %o\n", i, name,
+			fromRadix50(SectDir[SRefList.pool[i].sect].name[0], sect_name);
+			fromRadix50(SectDir[SRefList.pool[i].sect].name[1], sect_name + 3);
+			PRINTVERB(2, "i: %4d, name: %s, disp: %s/%o\n", i, name, sect_name,
 			SRefList.pool[i].disp);
 		}
 	}
@@ -576,7 +601,20 @@ add_simple_ref(RLD_Entry *ref) {
 
 @ @<Глобальные переменные...@>=
 static void add_simple_ref(RLD_Entry *);
+static uint16_t del_simple_ref(uint16_t);
 
+@* Разрешение ссылок на глобальные символы.
+@ Пробегаем набранные списки ссылок на глобальные символы и смотрим нет ли уже
+возможности разрешить ссылки. Возвращает 0, если неразрешенных ссылок нет.
+@c
+static int
+resolve_globals(void) {
+	return (simple_ref_is_empty() && 1);
+}
+
+
+@ @<Глобальные переменные...@>=
+static int resolve_globals(void);
 
 @* Каталоги перемещений.
 @ Блоки каталогов перемещений содержат информацию, которая нужна линковщику для
