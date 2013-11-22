@@ -35,6 +35,7 @@ main(int argc, char *argv[])
 	@<Инициализация каталога секций@>@;
 	@<Инициализация таблицы глобальных символов@>@;
 	@<Инициализация списка ссылок без констант@>@;
+	@<Инициализация списка пределов@>@;
 
 	/* Поочередно обрабатываем все заданные объектные файлы */
 	cur_input = 0;
@@ -48,9 +49,11 @@ main(int argc, char *argv[])
 		++cur_input;
 	}
 	@<Вывод таблицы глобальных символов@>@;
+	@<Заполнить пределы секций@>@;
 	@<Создаём файл результата@>@;
 	@<Очистка каталога секций@>@;
 	@<Освободить список ссылок@>@;
+	@<Освободить список пределов...@>@;
 	return(0);
 }
 
@@ -526,21 +529,24 @@ static int findSection(uint16_t *);
 Кусочки маленькие, поэтому попробуем не дергать операционку для выделения
 памяти, а используем линейные списки с хранением в массиве.
 
-@ Структура элемента списка для хранения ссылок без  константы.
+@ Структура элемента списка для хранения ссылок.
 @d INITIAL_SIMPLE_REF_LIST_SIZE 100
 @<Собственные типы данных...@>=
 typedef struct _SimpleRefEntry {
 	uint16_t link; /* Поле связи */
 	uint8_t	type;
 	uint8_t	sect;	/* Номер секции */
-	uint16_t	disp;	/* Смещение в секции уже учитывающее адрес самой сецкии */
+	uint16_t	disp;	/* Смещение в секции уже учитывающее адрес самой секции */
 	uint16_t	constant;
 	uint16_t name[2];
+	uint8_t	obj_file;	/* Номер входного файла */
 } SimpleRefEntry;
 typedef struct _SimpleRefList {
 	uint16_t avail;	/* Начало списка свободных блоков */
 	uint16_t poolmin;	/* Номер элемента --- нижней границы пула */
 	SimpleRefEntry *pool;	/* Массив для хранения списка */
+	int	num_allocations; /* Счетчик выделений памяти при нехватке начального
+	пула*/
 } SimpleRefList;
 
 @ @<Глобальные переменные...@>=
@@ -558,12 +564,22 @@ simpleRefIsEmpty(void) {
 static void
 addSimpleRef(RLD_Entry *ref) {@|
 	SimpleRefEntry *new_entry;
+	SimpleRefEntry *new_memory;
 	uint16_t new_index;
 
 	/* Если не хватило начального размера пула */
-	if (SRefList.poolmin == INITIAL_SIMPLE_REF_LIST_SIZE) {
-		PRINTERR("No memory for simple ref list");
-		return;
+	if (SRefList.poolmin == INITIAL_SIMPLE_REF_LIST_SIZE *
+			SRefList.num_allocations) {
+		++SRefList.num_allocations;	
+		new_memory = (SimpleRefEntry*)realloc(SRefList.pool, 
+		sizeof(SimpleRefEntry) * INITIAL_SIMPLE_REF_LIST_SIZE *
+			SRefList.num_allocations);
+		if (new_memory == NULL) {	
+			PRINTERR("No memory for simple ref list");
+			abort();
+		}	
+		PRINTVERB(2, "Done SRefList allocation:%d\n", SRefList.num_allocations);
+		SRefList.pool = new_memory;
 	}
 	/* Если есть свободные блоки */
 	if (SRefList.avail != 0) {
@@ -579,6 +595,7 @@ addSimpleRef(RLD_Entry *ref) {@|
 	SRefList.pool[0].link = new_index;
 
 	/* Собственно данные ссылки */
+	new_entry->obj_file = cur_input;
 	new_entry->name[0] = ref->value[0];
 	new_entry->name[1] = ref->value[1];
 	new_entry->disp = ref->disp - 4 + SectDir[CurSect].last_load_addr;
@@ -609,6 +626,7 @@ delSimpleRef(uint16_t ref_i) {
 @<Инициализация списка ссылок без констант...@>=
 	SRefList.pool = (SimpleRefEntry *)malloc(sizeof(SimpleRefEntry) *
 		INITIAL_SIMPLE_REF_LIST_SIZE);
+	SRefList.num_allocations = 1;	
 	SRefList.pool[0].link = 0;	
 	SRefList.avail = 0;
 	SRefList.poolmin = 1;
@@ -622,8 +640,8 @@ delSimpleRef(uint16_t ref_i) {
 			fromRadix50(SRefList.pool[i].name[1], name + 3);
 			fromRadix50(SectDir[SRefList.pool[i].sect].name[0], sect_name);
 			fromRadix50(SectDir[SRefList.pool[i].sect].name[1], sect_name + 3);
-			PRINTVERB(2, "i: %4d, name: %s, disp: %s/%o\n", i, name, sect_name,
-			SRefList.pool[i].disp);
+			PRINTVERB(2, "i: %4d, name: %s, disp: %s/%o, file: %s\n", i, name, sect_name,
+			SRefList.pool[i].disp, config.objnames[SRefList.pool[i].obj_file]);
 		}
 	}
 	free(SRefList.pool);
@@ -640,9 +658,7 @@ static int
 resolveGlobals(void) {
 	uint16_t ref, prev_ref, *dest_addr;
 	int global;
-	char name [7];
 
-	/* Ссылки без констант */
 	prev_ref = 0;@|
 	if (!simpleRefIsEmpty()) {@|
 		for (ref = SRefList.pool[0].link; ref != 0; prev_ref = ref, ref = SRefList.pool[ref].link) {
@@ -726,6 +742,90 @@ resolveGlobals(void) {
 @ @<Глобальные переменные...@>=
 static int resolveGlobals(void);
 
+@* Обработка пределов (|.LIMIT|) для секций.
+@ Структура элемента списка для хранения ссылок на пределы.
+@d INITIAL_LIMIT_LIST_SIZE 5
+@<Собственные типы данных...@>=
+typedef struct _LimListEntry {
+	uint16_t link; /* Поле связи */
+	uint8_t	sect;	/* Номер секции */
+	uint16_t	disp;	/* Смещение в секции уже учитывающее адрес самой секции */
+} LimListEntry;
+typedef struct _LimList {
+	LimListEntry *pool;	/* Массив для хранения списка */
+	int num_limits;
+	int	num_allocations; /* Счетчик выделений памяти при нехватке начального
+	пула*/
+} LimList;
+
+@ @<Глобальные переменные...@>=
+static LimList LimitList;
+static void addLimit(RLD_Entry *);
+static void resolveLimit(void);
+
+@ Добавляем новую ссылку на предел в список
+@c
+static void
+addLimit(RLD_Entry *ref) {@|
+	LimListEntry *new_entry;
+	LimListEntry *new_memory;
+
+	/* Если не хватило начального размера пула */
+	if (LimitList.num_limits == INITIAL_LIMIT_LIST_SIZE *
+			LimitList.num_allocations) {
+		++LimitList.num_allocations;	
+		new_memory = (LimListEntry*)realloc(LimitList.pool, sizeof(LimListEntry)
+		* INITIAL_LIMIT_LIST_SIZE *
+			LimitList.num_allocations);
+		if (new_memory == NULL) {	
+			PRINTERR("No memory for limit list");
+			abort();
+		}	
+		PRINTVERB(2, "Done LimitList allocation:%d\n", LimitList.num_allocations);
+		LimitList.pool = new_memory;
+	}
+	new_entry = LimitList.pool + LimitList.num_limits;
+	/* Собственно данные ссылки */
+	new_entry->disp = ref->disp - 4 + SectDir[CurSect].last_load_addr;
+	new_entry->sect = CurSect;
+	++LimitList.num_limits;
+}
+
+@ @<Инициализация списка пределов...@>=
+	LimitList.pool = (LimListEntry *)malloc(sizeof(LimListEntry) *
+		INITIAL_LIMIT_LIST_SIZE);
+	LimitList.num_allocations = 1;	
+	LimitList.num_limits = 0;
+
+@ @<Освободить список пределов...@>=
+	if (config.verbosity >= 2) {
+		PRINTVERB(2, "=Limit Refs:\n num_limits: %d\n",
+		 LimitList.num_limits);
+		for (i = 0; i < LimitList.num_limits; ++i) {
+			fromRadix50(SectDir[LimitList.pool[i].sect].name[0], sect_name);
+			fromRadix50(SectDir[LimitList.pool[i].sect].name[1], sect_name + 3);
+			PRINTVERB(2, "i: %4d, disp: %s/%o\n", i, sect_name,
+			LimitList.pool[i].disp);
+		}
+	}
+	free(LimitList.pool);
+@
+@<Заполнить пределы секций@>=
+	resolveLimit();
+@ @c	
+static void 
+resolveLimit(void) {
+	int i;
+	uint16_t *dest_dir;
+
+	for(i = 0; i < LimitList.num_limits; ++i) {
+		dest_dir = (uint16_t*)(SectDir[LimitList.pool[i].sect].text +
+			LimitList.pool[i].disp);
+		dest_dir[0] = SectDir[LimitList.pool[i].sect].min_addr;
+		dest_dir[1] = SectDir[LimitList.pool[i].sect].len;
+	}
+}
+
 @* Каталоги перемещений.
 @ Блоки каталогов перемещений содержат информацию, которая нужна линковщику для
 корректировки ссылок в предыдущем блоке |TEXT|. Каждый модуль должеен иметь хотя
@@ -770,7 +870,7 @@ handleRelocationDirectory(uint8_t *block, int len) {
 	RLD_Const_Entry *const_entry;
 	char gname[7];
 	uint16_t *value, *dest_addr;
-	int RLD_i;
+	int RLD_i, sect;
 
 	for (RLD_i = 2; RLD_i < len; ) {
 		entry = (RLD_Entry*)(block + RLD_i);
@@ -891,28 +991,38 @@ handleRelocationDirectory(uint8_t *block, int len) {
 	addSimpleRef(entry);	
 	RLD_i += 8;
 
-@ ?
+@ Не используется.
 @<Изменение текущей позиции@>=
 	PRINTVERB(2, "      +Const: %o.\n", entry->value[0]);
 	RLD_i += 4;
 
-@ ?
+@ 
 @<Установка пределов@>=
 	PRINTVERB(2, "      Disp: %o.\n", entry->disp);
+	addLimit(entry);
 	RLD_i += 2;
 
-@ ?
+@ 
 @<Прямая ссылка на секцию@>=
 	fromRadix50(entry->value[0], gname);
 	fromRadix50(entry->value[1], gname + 3);
 	PRINTVERB(2, "      Disp: %o, Name: %s.\n", entry->disp, gname);
+	sect = findSection(entry->value);
+	dest_addr = (uint16_t*)(SectDir[CurSect].text +
+		SectDir[CurSect].last_load_addr + entry->disp - 4);
+	*dest_addr = SectDir[sect].start;	
 	RLD_i += 6;
 
-@ ?
+@ 
 @<Косвенная ссылка на секцию@>=
 	fromRadix50(entry->value[0], gname);
 	fromRadix50(entry->value[1], gname + 3);
 	PRINTVERB(2, "      Disp: %o, Name: %s.\n", entry->disp, gname);
+	sect = findSection(entry->value);
+	dest_addr = (uint16_t*)(SectDir[CurSect].text +
+		SectDir[CurSect].last_load_addr + entry->disp - 4);
+	*dest_addr = SectDir[sect].start - SectDir[CurSect].last_load_addr -
+		entry->disp + 4 - 2;
 	RLD_i += 6;
 
 @ ?
@@ -922,6 +1032,10 @@ handleRelocationDirectory(uint8_t *block, int len) {
 	fromRadix50(entry->value[1], gname + 3);
 	PRINTVERB(2, "      Name: %s, +Const: %o.\n", gname,
 		const_entry->constant);
+	sect = findSection(entry->value);
+	dest_addr = (uint16_t*)(SectDir[CurSect].text +
+		SectDir[CurSect].last_load_addr + entry->disp - 4);
+	*dest_addr = SectDir[sect].start + const_entry->constant;
 	RLD_i += 8;
 
 @ ?
@@ -931,6 +1045,11 @@ handleRelocationDirectory(uint8_t *block, int len) {
 	fromRadix50(entry->value[1], gname + 3);
 	PRINTVERB(2, "      Name: %s, +Const: %o.\n", gname,
 		const_entry->constant);
+	sect = findSection(entry->value);
+	dest_addr = (uint16_t*)(SectDir[CurSect].text +
+		SectDir[CurSect].last_load_addr + entry->disp - 4);
+	*dest_addr = SectDir[sect].start - SectDir[CurSect].last_load_addr -
+		entry->disp + 4 - 2 + const_entry->constant;
 	RLD_i += 8;
 
 @ ?
