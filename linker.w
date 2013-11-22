@@ -107,9 +107,11 @@ typedef struct _BinaryBlock {
 static void
 handleOneFile(FILE *fobj) {
 	BinaryBlock obj_header;
-	int first_byte;
+	int first_byte, i;
 	unsigned int block_len;
+	char name[7];
 	
+	@<Сбросить перекодировку секций@>@;
 	while (!feof(fobj)) {
 		/* Ищем начало блока */
 		do {
@@ -151,6 +153,7 @@ static uint8_t block_body[65536 + 1];
 			break;
 		case 2 :
 			PRINTVERB(2, "ENDGSD\n");
+			@<Вывести перекодировку секций@>@;
 			break;
 		case 3 :
 			PRINTVERB(2, "TXT\n");
@@ -266,7 +269,7 @@ handleGSD(int len) {
 @ Разбор определения/ссылки на глобальный символ.
 @ Таблица глобальных символов. |addr| содержит уже смещенный адрес относительно
 0.
-@d MAX_GLOBALS 512
+@d MAX_GLOBALS 1024
 @<Собственные типы данных...@>=
 typedef struct _GSymDefEntry {
 	uint16_t name[2];	
@@ -386,6 +389,7 @@ handleProgramSection(GSD_Entry *entry) {
 		SectDir[CurSect].start += SectDir[CurSect].len;
 		SectDir[CurSect].len += entry->value;
 	}
+	@<Добавить перекодировку секции@>@;
 }
 
 @ @<Глобальные переменные...@>=
@@ -1025,7 +1029,7 @@ handleRelocationDirectory(uint8_t *block, int len) {
 		entry->disp + 4 - 2;
 	RLD_i += 6;
 
-@ ?
+@ 
 @<Прямая смещенная ссылка на секцию@>=
 	const_entry = (RLD_Const_Entry *) entry;
 	fromRadix50(entry->value[0], gname);
@@ -1038,7 +1042,7 @@ handleRelocationDirectory(uint8_t *block, int len) {
 	*dest_addr = SectDir[sect].start + const_entry->constant;
 	RLD_i += 8;
 
-@ ?
+@ 
 @<Косвенная смещенная ссылка на секцию@>=
 	const_entry = (RLD_Const_Entry *) entry;
 	fromRadix50(entry->value[0], gname);
@@ -1052,7 +1056,34 @@ handleRelocationDirectory(uint8_t *block, int len) {
 		entry->disp + 4 - 2 + const_entry->constant;
 	RLD_i += 8;
 
-@ ?
+@* Обработка сложных ссылок.
+@ Для сложных ссылок нужно знать номера секций в текущем модуле.
+@<Собственные типы данных...@>=
+typedef struct _CurSectEntry {
+	uint16_t name[2];
+	uint8_t	global_sect;
+} CurSectEntry;
+
+@ @<Глобальные переменные...@>=
+static CurSectEntry curSections[MAX_PROG_SECTIONS];
+static int NumCurSections;
+
+@ @<Сбросить перекодировку секций@>=
+	NumCurSections = 0;
+@ @<Добавить перекодировку секции@>=
+	curSections[NumCurSections].name[0] = SectDir[CurSect].name[0];
+	curSections[NumCurSections].name[1] = SectDir[CurSect].name[1];
+	curSections[NumCurSections++].global_sect = CurSect;
+@ @<Вывести перекодировку секций@>=
+	PRINTVERB(2, "=Sections recoding.\n");
+	for (i = 0; i < NumCurSections; ++i) {
+		fromRadix50(curSections[i].name[0], name);
+		fromRadix50(curSections[i].name[1], name + 3);
+		PRINTVERB(2, "sect: %3d, %s, global sect: %d\n", i, name,
+			curSections[i].global_sect);
+	}
+
+@ 
 @d CREL_OP_NONE			000
 @d CREL_OP_ADDITION		001
 @d CREL_OP_SUBSTRACTION		002
