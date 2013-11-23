@@ -35,6 +35,7 @@ main(int argc, char *argv[])
 	@<Инициализация каталога секций@>@;
 	@<Инициализация таблицы глобальных символов@>@;
 	@<Инициализация списка ссылок без констант@>@;
+	@<Инициализация списка сложных выражений@>@;
 	@<Инициализация списка пределов@>@;
 
 	/* Поочередно обрабатываем все заданные объектные файлы */
@@ -45,6 +46,8 @@ main(int argc, char *argv[])
 		handleOneFile(fobj);
 		/* Разрешаем глобальные ссылки */
 		all_resolved = resolveGlobals();
+		/* Разрешаем сложные ссылки */
+		all_resolved += resolveComplex();
 		fclose(fobj);
 		++cur_input;
 	}
@@ -52,8 +55,9 @@ main(int argc, char *argv[])
 	@<Заполнить пределы секций@>@;
 	@<Создаём файл результата@>@;
 	@<Очистка каталога секций@>@;
+	@<Освободить список сложных выражений@>@;
 	@<Освободить список ссылок@>@;
-	@<Освободить список пределов...@>@;
+	@<Освободить список пределов@>@;
 	return(0);
 }
 
@@ -1083,6 +1087,230 @@ static int NumCurSections;
 			curSections[i].global_sect);
 	}
 
+@ Список сложных ссылок. Каждая ссылка содержит простой массив термов сложного
+выражения. Максимальное количество термов в выражении ограничено согласно
+документации
+MACRO-11\footnote{$^1$}{AA-KX10A-TC\_PDP-11\_MACRO-11\_Reference\_Manual\_May88}.
+@d MAX_COMPLEX_TERMS 20
+@<Собственные типы данных...@>=
+typedef struct _ComplexTerm {
+	uint8_t code;
+	union {
+		uint16_t name[2];
+		struct {
+			uint8_t sect;
+			uint16_t disp;
+		} inter;
+		uint16_t constant;
+	} un;
+} ComplexTerm;
+
+typedef struct _ComplexExprEntry {
+	uint16_t link;		/* Поле связи */
+	uint8_t	disp;
+	uint8_t sect;
+	uint8_t obj_file;
+	uint8_t NumTerms;	/* Количество термов в выражении */
+	ComplexTerm terms[MAX_COMPLEX_TERMS]; 
+} ComplexExprEntry;
+
+typedef struct _ComplexExpressionList {
+	uint16_t avail;
+	uint16_t poolmin;
+	uint16_t num_allocations; 
+	ComplexExprEntry *pool;
+} ComplexExpressionList;
+
+@ @<Глобальные переменные...@>=
+static ComplexExpressionList CExprList;
+static int complexRefIsEmpty(void);
+static void addComplexExpr(RLD_Entry *);
+static uint16_t delComplexExpr(uint16_t);
+@ 
+@d INITIAL_COMPLEX_EXPR_LIST_SIZE 10
+@c
+static int
+complexRefIsEmpty(void) {
+	return(CExprList.pool[0].link == 0);
+}
+
+@ @<Инициализация списка сложных выражений...@>=
+	CExprList.pool = (ComplexExprEntry *)malloc(sizeof(ComplexExprEntry) *
+		INITIAL_COMPLEX_EXPR_LIST_SIZE);
+	CExprList.num_allocations = 1;	
+	CExprList.pool[0].link = 0;	
+	CExprList.avail = 0;
+	CExprList.poolmin = 1;
+
+@ @<Освободить список сложных выражений...@>=
+	if (config.verbosity >= 2) {
+		PRINTVERB(2, "=Complex Refs:\n avail: %d, poolmin: %d\n",
+		 CExprList.avail, CExprList.poolmin);
+		for (i = CExprList.pool[0].link; i != 0; i = CExprList.pool[i].link) {
+			fromRadix50(SectDir[CExprList.pool[i].sect].name[0], sect_name);
+			fromRadix50(SectDir[CExprList.pool[i].sect].name[1], sect_name + 3);
+			PRINTVERB(2, "i: %4d, disp: %s/%o, file: %s\n", i, sect_name,
+			CExprList.pool[i].disp, config.objnames[CExprList.pool[i].obj_file]);
+		}
+	}
+	free(CExprList.pool);
+
+@ Добавляем новое сложное выражение в список
+@c
+static void
+addComplexExpr(RLD_Entry *ref) {@|
+	ComplexExprEntry *new_entry;
+	ComplexExprEntry *new_memory;
+	uint16_t new_index;
+
+	/* Если не хватило начального размера пула */
+	if (CExprList.poolmin == INITIAL_SIMPLE_REF_LIST_SIZE *
+			CExprList.num_allocations) {
+		++CExprList.num_allocations;	
+		new_memory = (ComplexExprEntry*)realloc(CExprList.pool, 
+		sizeof(ComplexExprEntry) * INITIAL_SIMPLE_REF_LIST_SIZE *
+			CExprList.num_allocations);
+		if (new_memory == NULL) {	
+			PRINTERR("No memory for complex ref list");
+			abort();
+		}	
+		PRINTVERB(2, "Done CExprList allocation:%d\n", CExprList.num_allocations);
+		CExprList.pool = new_memory;
+	}
+	/* Если есть свободные блоки */
+	if (CExprList.avail != 0) {
+		new_index = CExprList.avail;
+		CExprList.avail = CExprList.pool[CExprList.avail].link;
+	} else {
+	/* Свободных блоков нет, используем пул */
+		new_index = CExprList.poolmin;
+		++CExprList.poolmin;
+	}
+	new_entry = CExprList.pool + new_index;
+	new_entry->link = CExprList.pool[0].link;
+	CExprList.pool[0].link = new_index;
+
+	/* Собственно данные ссылки */
+	new_entry->obj_file = cur_input;
+	new_entry->disp = ref->disp - 4 + SectDir[CurSect].last_load_addr;
+	new_entry->sect = CurSect;
+	CurComplexExpr = new_index;
+}
+@ @<Глобальные переменные...@>=
+static uint16_t CurComplexExpr;
+static void addComplexTerm(uint8_t, uint16_t *, uint8_t, uint16_t, uint16_t);
+
+@ Добавляем терм в текущее сложное выражение.
+@c
+static void 
+addComplexTerm(uint8_t code, uint16_t *name, uint8_t sect, uint16_t disp,
+uint16_t constant) {
+	ComplexTerm *term;
+
+	term = CExprList.pool[CurComplexExpr].terms +
+		(++CExprList.pool[CurComplexExpr].NumTerms);
+	term->code = code;
+	switch (code) {
+		case CREL_OP_FETCH_GLOBAL:
+			term->un.name[0] = name[0];
+			term->un.name[1] = name[1];
+			break;
+		case CREL_OP_FETCH_RELOCABLE:
+			term->un.inter.sect = sect;
+			term->un.inter.disp = disp;
+			break;
+		case CREL_OP_FETCH_CONSTANT:
+			term->un.constant = constant;
+		default:
+			;
+	}
+}
+
+@ Удаляем ссылку из списка. Возвращает поле связи удалямого элемента. Задача
+вызывающей функции: записать это значение в поле связи предыдущего элемента.
+@c
+static uint16_t 
+delComplexExpr(uint16_t ref_i) {
+	uint16_t link;
+
+	link = CExprList.pool[ref_i].link;
+	CExprList.pool[ref_i].link = CExprList.avail;
+	CExprList.avail = ref_i;
+	
+	return(link);
+}
+
+@ Разрешение комплексных ссылок. Список содержит только те выражения, которые
+содержат неразрешенные ссылки. Возможно за один раз не получится разрешить все
+ссылки в выражении, но можно модифицировать выражение, заменяя ссылки, которые
+удалось разрешить, на константы. В следующий раз уже не придется заниматься
+поиском по имени.
+@c
+static int 
+resolveComplex(void) {
+	ComplexExprEntry *entry;
+	int prev, i;
+
+	for (i = CExprList.pool[0].link; i != 0; prev = i, i =
+			CExprList.pool[i].link) {
+		entry = CExprList.pool + i;
+		PRINTVERB(2, "Try resolve expr:%d\n", i);
+		/* Пытаемся разрешить все ссылки внутри выражения */
+		if (!resolveTerms(entry)) {
+			/* Удалось разрешить все ссылки */
+		}
+	}
+
+	return(!complexRefIsEmpty());
+}
+@ Попытка разрешить символы внутри одного выражения.
+@c 
+static int
+resolveTerms(ComplexExprEntry *entry) {
+	int i, not_resolved, global;
+	uint16_t addr;
+	
+	not_resolved = 0;
+	for (i = 0; i < entry->NumTerms; ++i) {
+		switch (entry->terms[i].code) {
+			case CREL_OP_FETCH_GLOBAL:
+				global = findGlobalSym(entry->terms[i].un.name);
+				if (global == -1) {
+					++not_resolved;
+					break;
+				}	
+				/* Делаем из терма константу */
+				entry->terms[i].code = CREL_OP_FETCH_CONSTANT;
+				entry->terms[i].un.constant =
+					GSymDef[global].addr;
+				PRINTVERB(2, "Made constant term: %d, value:"
+					" %o\n", i, entry->terms[i].un.constant);	
+				break;
+			case CREL_OP_FETCH_RELOCABLE:
+				/* Перкодируем номер секции и вычисляем адрес */
+				global = curSections[entry->terms[i].un.inter.sect].global_sect;
+				addr = SectDir[global].start +
+					entry->terms[i].un.inter.disp;
+				PRINTVERB(2, "Made constant term: %d, sect:"
+					" %d, global sect: %d, value: %o,"
+					" section start: %o, disp: %o\n", i,
+					entry->terms[i].un.inter.sect, global, 
+					addr, SectDir[global].start,
+					entry->terms[i].un.inter.disp);	
+				entry->terms[i].un.constant = addr;
+				entry->terms[i].code = CREL_OP_FETCH_CONSTANT;
+				break;
+			default:;
+		}
+	}
+
+	return(not_resolved);
+}
+
+@ @<Глобальные переменные...@>=
+static int resolveComplex(void);
+static int resolveTerms(ComplexExprEntry *);
+
 @ 
 @d CREL_OP_NONE			000
 @d CREL_OP_ADDITION		001
@@ -1100,39 +1328,49 @@ static int NumCurSections;
 @d CREL_OP_FETCH_RELOCABLE	017
 @d CREL_OP_FETCH_CONSTANT	020
 @<Сложная ссылка@>=
+	addComplexExpr(entry);
 	PRINTVERB(2, "      Disp: %o.\n        ", entry->disp);
-	for (RLD_i += 2; block[RLD_i] != CREL_OP_STORE_RESULT; ++RLD_i) {
+	for (RLD_i += 2; block[RLD_i] != CREL_OP_STORE_RESULT &&
+			 block[RLD_i] != CREL_OP_STORE_RESULT_DISP; ++RLD_i) {
 		switch (block[RLD_i]) {
 			case CREL_OP_NONE:
+				addComplexTerm(CREL_OP_NONE, NULL, 0, 0, 0);
 				break;
 			case CREL_OP_ADDITION:
 				PRINTVERB(2, "+ ");
+				addComplexTerm(CREL_OP_ADDITION, NULL, 0, 0, 0);
 				break;
 			case CREL_OP_SUBSTRACTION:
 				PRINTVERB(2, "- ");
+				addComplexTerm(CREL_OP_SUBSTRACTION, NULL, 0, 0, 0);
 				break;
 			case CREL_OP_MULTIPLICATION:
 				PRINTVERB(2, "* ");
+				addComplexTerm(CREL_OP_MULTIPLICATION, NULL, 0, 0, 0);
 				break;
 			case CREL_OP_DIVISION:
 				PRINTVERB(2, "/ ");
+				addComplexTerm(CREL_OP_DIVISION, NULL, 0, 0, 0);
 				break;
 			case CREL_OP_AND:
 				PRINTVERB(2, "and ");
+				addComplexTerm(CREL_OP_AND, NULL, 0, 0, 0);
 				break;
 			case CREL_OP_OR:
 				PRINTVERB(2, "or ");
+				addComplexTerm(CREL_OP_OR, NULL, 0, 0, 0);
 				break;
 			case CREL_OP_XOR:
 				PRINTVERB(2, "xor ");
+				addComplexTerm(CREL_OP_XOR, NULL, 0, 0, 0);
 				break;
 			case CREL_OP_NEG:
 				PRINTVERB(2, "neg ");
+				addComplexTerm(CREL_OP_NEG, NULL, 0, 0, 0);
 				break;
 			case CREL_OP_COM:
 				PRINTVERB(2, "com ");
-				break;
-			case CREL_OP_STORE_RESULT_DISP:
+				addComplexTerm(CREL_OP_COM, NULL, 0, 0, 0);
 				break;
 			case CREL_OP_FETCH_GLOBAL:
 				++RLD_i;
@@ -1141,11 +1379,14 @@ static int NumCurSections;
 				fromRadix50(value[1], gname + 3);
 				RLD_i += 3;
 				PRINTVERB(2, "%s ", gname);
+				addComplexTerm(CREL_OP_FETCH_GLOBAL, value, 0, 0, 0);
 				break;
 			case CREL_OP_FETCH_RELOCABLE:
 				value = (uint16_t *)(block + RLD_i + 2);
 				PRINTVERB(2, "sect:%o/%o ", block[RLD_i + 1],
 					value[0]);
+				addComplexTerm(CREL_OP_FETCH_RELOCABLE, NULL, block[RLD_i +
+					1], value[0], 0);
 				RLD_i += 3;	
 				break;
 			case CREL_OP_FETCH_CONSTANT:
@@ -1153,9 +1394,11 @@ static int NumCurSections;
 				value = (uint16_t *)(block + RLD_i);
 				++RLD_i;
 				PRINTVERB(2, "%o ", *value);
+				addComplexTerm(CREL_OP_FETCH_CONSTANT, NULL, 0, 0, value[0]);
 				break;
 			default :
-				PRINTERR("Bad complex relocation opcode.\n");
+				PRINTERR("Bad complex relocation opcode: %d.\n",
+				block[RLD_i]);
 				return;
 		}
 	}
