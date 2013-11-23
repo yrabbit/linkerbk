@@ -19,9 +19,11 @@
 Линковщик предназначен для получения исполняемых файлов из объектных файлов
 ассемблера MACRO-11\footnote{$^1$}{Использовалась BSD-версия ассемблера
 Richard'а
-Krehbiel'а.}. Входными параметрами являются: перечень имен объектных файлов, имя
+Krehbiel'а.}. 
+Входными параметрами являются: перечень имен объектных файлов, имя
 выходного файла\footnote{$^2$}{На самом деле выходных файлов может быть много,
 но указывается только имя файла для основной/стартовой секции.} и несколько управляющих ключей.
+На выходе создается исполняемый файл для БК11М.
 
 @* Общая схема программы.
 @c
@@ -161,7 +163,7 @@ handleOneFile(FILE *fobj) {
 		block_len = obj_header.len - 4;
 		PRINTVERB(2, "Binary block found. Length:%o\n", block_len);
 
-		/* Читаем тело блока с котрольной суммой */
+		/* Читаем тело блока с контрольной суммой */
 		if (fread(block_body, block_len + 1, 1, fobj) != 1) {
 			PRINTERR("IO error: %s\n", config.objnames[cur_input]);
 			break;
@@ -267,7 +269,7 @@ handleGSD(int len) {
 				@<Установить адрес запуска@>@;
 				break;
 			case GSD_GLOBAL_SYMBOL_NAME:
-				/* Определение/ссылка на глобольный адрес */
+				/* Определение/ссылка на глобальный адрес */
 				PRINTVERB(2, "GlobalSymbolName, flags:%o, value:%o.\n",
 						entry->flags, entry->value);
 				@<Обработать глобальные символы и ссылки@>@;		
@@ -1330,7 +1332,7 @@ resolveTerms(ComplexExprEntry *entry) {
 					GSymDef[global].addr;
 				break;
 			case CREL_OP_FETCH_RELOCABLE:
-				/* Перкодируем номер секции и вычисляем адрес */
+				/* Перекодируем номер секции и вычисляем адрес */
 				global = curSections[entry->terms[i].un.inter.sect].global_sect;
 				addr = SectDir[global].start +
 					entry->terms[i].un.inter.disp;
@@ -1590,7 +1592,7 @@ static struct argp argp = {options, parse_opt, NULL, argp_program_doc};
 @<Собственные...@>=
 typedef struct _Arguments {
 	int  verbosity;
-	char output_filename[FILENAME_MAX]; /* Имя файла с тектом */
+	char output_filename[FILENAME_MAX]; /* Имя файла с текстом */
 	char **objnames;		    /* Имена объектных файлов
 					 objnames[?] == NULL --> конец имен*/
 } Arguments;
