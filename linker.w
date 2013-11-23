@@ -16,6 +16,10 @@
 \vskip 10pt
 \centerline{Yellow Rabbit}
 \vskip 80pt
+Линковщик предназначен для получения исполняемых файлов из объектных файлов
+ассемблера MACRO-11\footnote{$^1$}{Использовалась BSD-версия ассемблера
+Richard'а
+Krehbiel'а}.
 
 @* Общая схема программы.
 @c
@@ -29,7 +33,7 @@ main(int argc, char *argv[])
 {
 	@<Данные программы@>@;
 	const char *objname;
-	int i, all_resolved;
+	int i, j, all_resolved;
 
 	@<Разобрать командную строку@>@;
 	@<Инициализация каталога секций@>@;
@@ -66,6 +70,7 @@ main(int argc, char *argv[])
 static int cur_input;
 @ @<Данные программы@>=
 FILE *fobj, *fresult;
+char ovrname[200], *ovrptr;
 
 @ @<Открыть объектный файл@>=
 	fobj = fopen(objname,"r");
@@ -78,18 +83,39 @@ FILE *fobj, *fresult;
 для которой указан адрес запуска. Остальные секции ненулевой длины планируется
 писать в дополнительные файлы (оверлеи).
 @<Создаём файл результата@>=
-	fresult = fopen(config.output_filename, "w");
-	if (fresult == NULL) {
-		PRINTERR("Can't create %s\n", config.output_filename);
-		return(ERR_CANTCREATE);
-	}
 	for (i = 0; i < NumSections; ++i) {
-		if (SectDir[i].transfer_addr == 1 || SectDir[i].len == 0) 
+		if (SectDir[i].transfer_addr != 1 && SectDir[i].len != 0) {
+			fresult = fopen(config.output_filename, "w");
+			if (fresult == NULL) {
+				PRINTERR("Can't create %s\n", config.output_filename);
+				return(ERR_CANTCREATE);
+			}
+			fwrite(SectDir[i].text + SectDir[i].min_addr, 
+				SectDir[i].len - SectDir[i].min_addr, 1, fresult);
+			fclose(fresult);
 			continue;
-		fwrite(SectDir[i].text + SectDir[i].min_addr, 
-			SectDir[i].len - SectDir[i].min_addr, 1, fresult);
+		}
+		if (SectDir[i].len != 0) {
+			fromRadix50(SectDir[i].name[0], sect_name);
+			fromRadix50(SectDir[i].name[1], sect_name + 3);
+			strcpy(ovrname, config.output_filename);
+			ovrptr = ovrname + strlen(ovrname) + 1;
+			*(ovrptr - 1) = '-';
+			for (j = 0; j < 6; ++j) {
+				ovrptr[j] = sect_name[j] == ' ' ? '_' : sect_name[j];
+			}
+			ovrptr[j] = '\0';
+			strcat(ovrname, ".ovr");
+			fresult = fopen(ovrname, "w");
+			if (fresult == NULL) {
+				PRINTERR("Can't create %s\n", ovrname);
+				return(ERR_CANTCREATE);
+			}
+			fwrite(SectDir[i].text + SectDir[i].min_addr, 
+				SectDir[i].len - SectDir[i].min_addr, 1, fresult);
+			fclose(fresult);
+		}
 	}
-	fclose(fresult);
 
 @* Обработка объектного файла.
 
