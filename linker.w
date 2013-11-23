@@ -1107,9 +1107,10 @@ typedef struct _ComplexTerm {
 
 typedef struct _ComplexExprEntry {
 	uint16_t link;		/* Поле связи */
-	uint8_t	disp;
+	uint16_t disp;
 	uint8_t sect;
 	uint8_t obj_file;
+	uint8_t	result_type;
 	uint8_t NumTerms;	/* Количество термов в выражении */
 	ComplexTerm terms[MAX_COMPLEX_TERMS]; 
 } ComplexExprEntry;
@@ -1208,7 +1209,7 @@ uint16_t constant) {
 	ComplexTerm *term;
 
 	term = CExprList.pool[CurComplexExpr].terms +
-		(++CExprList.pool[CurComplexExpr].NumTerms);
+		(CExprList.pool[CurComplexExpr].NumTerms++);
 	term->code = code;
 	switch (code) {
 		case CREL_OP_FETCH_GLOBAL:
@@ -1250,14 +1251,30 @@ static int
 resolveComplex(void) {
 	ComplexExprEntry *entry;
 	int prev, i;
+	uint16_t value, *dest_addr;
 
+	prev = 0;
 	for (i = CExprList.pool[0].link; i != 0; prev = i, i =
 			CExprList.pool[i].link) {
 		entry = CExprList.pool + i;
-		PRINTVERB(2, "Try resolve expr:%d\n", i);
 		/* Пытаемся разрешить все ссылки внутри выражения */
 		if (!resolveTerms(entry)) {
 			/* Удалось разрешить все ссылки */
+			value = calcTerms(entry);
+			/* В зависимости от типа записываем результат */
+			if (entry->result_type == CREL_OP_STORE_RESULT) {
+				/* Прямое обращение */
+				dest_addr = (uint16_t*)(SectDir[entry->sect].text +
+					+ entry->disp);
+				*dest_addr = value;
+			} else {
+				/* Косвенное обращение */
+				dest_addr = (uint16_t*)(SectDir[entry->sect].text +
+					+ entry->disp);
+				*dest_addr = value - 2 - entry->disp;
+			}
+			CExprList.pool[prev].link = delComplexExpr(i);
+			i = prev;
 		}
 	}
 
@@ -1283,33 +1300,91 @@ resolveTerms(ComplexExprEntry *entry) {
 				entry->terms[i].code = CREL_OP_FETCH_CONSTANT;
 				entry->terms[i].un.constant =
 					GSymDef[global].addr;
-				PRINTVERB(2, "Made constant term: %d, value:"
-					" %o\n", i, entry->terms[i].un.constant);	
 				break;
 			case CREL_OP_FETCH_RELOCABLE:
 				/* Перкодируем номер секции и вычисляем адрес */
 				global = curSections[entry->terms[i].un.inter.sect].global_sect;
 				addr = SectDir[global].start +
 					entry->terms[i].un.inter.disp;
-				PRINTVERB(2, "Made constant term: %d, sect:"
-					" %d, global sect: %d, value: %o,"
-					" section start: %o, disp: %o\n", i,
-					entry->terms[i].un.inter.sect, global, 
-					addr, SectDir[global].start,
-					entry->terms[i].un.inter.disp);	
 				entry->terms[i].un.constant = addr;
 				entry->terms[i].code = CREL_OP_FETCH_CONSTANT;
 				break;
 			default:;
 		}
 	}
-
 	return(not_resolved);
+}
+
+@ Вычисление сложного выражения. Уже ничего не осталось, кроме констант и операций
+над ними, так что заводим стек на 20 позиций и подсчитываем. В самом элементе
+запоминаем какая команда была последней~---~по документации возможно
+использование как прямого, так и смещенного результата вычислений.
+@c
+static uint16_t 
+calcTerms(ComplexExprEntry *entry) {
+	uint16_t stack[MAX_COMPLEX_TERMS];
+	uint16_t *sp;
+	ComplexTerm *term;
+	int i;
+
+	sp = stack;
+	for (i = 0; i < entry->NumTerms; ++i) {
+		term = entry->terms + i;
+		switch (term->code) {
+			case CREL_OP_NONE:
+				break;
+			case CREL_OP_ADDITION:
+				*(sp - 1) = *sp + *(sp - 1);
+				--sp;
+				break;
+			case CREL_OP_SUBSTRACTION:
+				*(sp - 1) = *(sp - 1) - *sp;
+				--sp;
+				break;
+			case CREL_OP_MULTIPLICATION:
+				*(sp - 1) = *sp * *(sp - 1);
+				--sp;
+				break;
+			case CREL_OP_DIVISION:
+				*(sp - 1) = *(sp - 1) / *sp;
+				--sp;
+				break;
+			case CREL_OP_AND:
+				*(sp - 1) = *sp & *(sp - 1);
+				--sp;
+				break;
+			case CREL_OP_OR:
+				*(sp - 1) = *sp | *(sp - 1);
+				--sp;
+				break;
+			case CREL_OP_XOR:
+				*(sp - 1) = *sp ^ *(sp - 1);
+				--sp;
+				break;
+			case CREL_OP_NEG:
+				*sp = 0 - *sp;
+				break;
+			case CREL_OP_COM:
+				*sp = ~*sp;
+				break;
+			case CREL_OP_STORE_RESULT:
+			case CREL_OP_STORE_RESULT_DISP:
+				entry->result_type = term->code;
+				break;
+			case CREL_OP_FETCH_CONSTANT:
+				*(++sp) = term->un.constant;
+				break;
+			default:
+				PRINTERR("Bad term code: %o\n", term->code);
+		}
+	}
+	return(*sp);
 }
 
 @ @<Глобальные переменные...@>=
 static int resolveComplex(void);
 static int resolveTerms(ComplexExprEntry *);
+static uint16_t calcTerms(ComplexExprEntry *);
 
 @ 
 @d CREL_OP_NONE			000
@@ -1402,6 +1477,7 @@ static int resolveTerms(ComplexExprEntry *);
 				return;
 		}
 	}
+	addComplexTerm(block[RLD_i], NULL, 0, 0, 0);
 	++RLD_i;
 	PRINTVERB(2, "\n");
 
