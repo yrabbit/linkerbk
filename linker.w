@@ -1726,6 +1726,9 @@ parse_opt(int key, char *arg, struct argp_state *state) {
 @* Макросы для монитора БК11М.
 \listing{tests/bk11.mac}
 
+@* Макросы для MKDOS.
+\listing{tests/mkdos.mac}
+
 @* Индекс.
 
 

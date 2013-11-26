@@ -1,7 +1,7 @@
 # Makefile for cweave, ctangle, plain TeX etc
 CTANGLE = ctangle
 CWEAVE = cweave
-TEX = tex
+TEX = plain-ru
 CC = gcc
 CFLAGS=-Wall -g
 CFLAGS+=-I /usr/local/include
@@ -16,7 +16,7 @@ linker.ps: linker.dvi
 	dvips -j0 linker.dvi -o
 
 linker.dvi: linker.tex
-	echo '\input cwebmac' >macro.tex
+	echo '\input cwebmac-ru' >macro.tex
 	$(TEX) linker.tex
 
 linker.tex: linker.w
