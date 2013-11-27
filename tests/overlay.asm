@@ -1,7 +1,7 @@
 ;; vim: set expandtab ai textwidth=80:
                 .TITLE  OVERL
                 .IDENT  /V00.11/
-                .MCALL  .BINIT,.BEXIT
+                .MCALL  .BINIT,.BEXIT,.BSTR,.BTTIN
                 .MCALL  AFTER$MKDOS,MKDOS$TAPE
 LoadAddr=40000               
 
@@ -10,9 +10,19 @@ LoadAddr=40000
 Start:          AFTER$MKDOS             ; если планируем использовать функции
                                         ; MKDOS
                 .BINIT                  ; инициализируем монитор БК11М
+                .BSTR   #Prompt
+                .BTTIN
                 MKDOS$TAPE #TapeParams
+                .BSTR   #Loaded
+                .BTTIN
                 .BEXIT
+Prompt:         .ASCIZ  /Press any key to load overlay.../
+Loaded:         .ASCIZ  /Overlay loaded./
                 .EVEN
-TapeParams:     .BLKB   3,0                
+TapeParams:     .BYTE   3,0                
+                .WORD   41000,0
+1$:             .ASCII  /overlay/
+                .BLKB   ^D16-<.-1$>
+                .BLKB   ^D16+4
                 .END    Start
 

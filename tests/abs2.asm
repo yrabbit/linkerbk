@@ -4,8 +4,8 @@
                 .MCALL  .BINIT,.BEXIT,.BTSET,.BSTR,.BTTIN
 
                 ;; Вектор прерывания от клавиатуры
-                KeyboardVect=60
-                KeyboardPSW=KeyboardVect+2
+KeyboardVect=60
+KeyboardPSW=KeyboardVect+2
 ;; Все секции начинаются с 0, поэтому нужно смещение
 .=.+1000
 Start:    

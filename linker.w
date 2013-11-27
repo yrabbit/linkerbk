@@ -1748,7 +1748,9 @@ parse_opt(int key, char *arg, struct argp_state *state) {
 Файл lib/.BTTIN.MAC
 \listing{tests/lib/.BTTIN.MAC}
 @* Макросы для MKDOS.
-\listing{tests/MKDOS.MAC}
+
+Файл lib/AFTER\$MKDOS.MAC
+\listing{tests/lib/AFTER$MKDOS.MAC}
 
 @* Индекс.
 
