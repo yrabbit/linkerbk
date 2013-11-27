@@ -1,0 +1,7 @@
+;; === Обращение через магнитофонный интерфейс.
+;; 
+        .MACRO  MKDOS$TAPE,TAPECMD
+        mov TAPECMD,R1
+        jsr PC,@#120002
+        .ENDM
+
