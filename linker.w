@@ -1724,10 +1724,10 @@ parse_opt(int key, char *arg, struct argp_state *state) {
 #define PRINTERR(fmt, a...) fprintf(stderr, (fmt), ## a) 
 
 @* Макросы для монитора БК11М.
-\listing{tests/bk11.mac}
+\listing{tests/BK11.MAC}
 
 @* Макросы для MKDOS.
-\listing{tests/mkdos.mac}
+\listing{tests/MKDOS.MAC}
 
 @* Индекс.
 
