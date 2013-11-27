@@ -1,0 +1,5 @@
+;; Выход в монитор
+        .MACRO  .BEXIT
+        jsr     PC,@140012
+        .ENDM
+

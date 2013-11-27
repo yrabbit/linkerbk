@@ -1,0 +1,6 @@
+;; Вывод строки
+        .MACRO  .BSTR,ADDR
+        mov     ADDR,R0
+        jsr     PC,@140162
+        .ENDM
+

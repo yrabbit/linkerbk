@@ -75,7 +75,11 @@ MACRO-11:
 устройств
 или еще чего-нибудь проще использовать прямое
 присваивание символов как в следующем примере\footnote{$^3$}{Это также пример того,
-как можно написать программу на одних макросах:)}.
+как можно написать программу на одних макросах:) Все использованные макросы
+перечисляются в псевдокоманде \verbatim!.MCALL!, кроме того при компиляции нужно
+указать macro11 каталог с файлами макросов (опция \verbatim!-p!) или определить
+переменную окружения \verbatim!MCALL!. В конце этого документа приведены файлы
+макросов для монитора БК11М и MKDOS.}.
 \listing{tests/abs2.asm}
 
 @* Общая схема программы.
@@ -1724,8 +1728,25 @@ parse_opt(int key, char *arg, struct argp_state *state) {
 #define PRINTERR(fmt, a...) fprintf(stderr, (fmt), ## a) 
 
 @* Макросы для монитора БК11М.
-\listing{tests/BK11.MAC}
 
+Файл lib/.BINIT.MAC
+\listing{tests/lib/.BINIT.MAC}
+Файл lib/.BEXIT.MAC
+\listing{tests/lib/.BEXIT.MAC}
+Файл lib/.BJSR.MAC
+\listing{tests/lib/.BJSR.MAC}
+Файл lib/.BMEM.MAC
+\listing{tests/lib/.BMEM.MAC}
+Файл lib/.BPAGE.MAC
+\listing{tests/lib/.BPAGE.MAC}
+Файл lib/.BWORK.MAC
+\listing{tests/lib/.BWORK.MAC}
+Файл lib/.BSTR.MAC
+\listing{tests/lib/.BSTR.MAC}
+Файл lib/.BTSET.MAC
+\listing{tests/lib/.BTSET.MAC}
+Файл lib/.BTTIN.MAC
+\listing{tests/lib/.BTTIN.MAC}
 @* Макросы для MKDOS.
 \listing{tests/MKDOS.MAC}
 

@@ -1,0 +1,7 @@
+;; Установка режима
+        .MACRO  .BTSET,MODE
+        mov     MODE,R0
+        jsr     PC,@140132
+        .ENDM
+
+
