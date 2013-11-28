@@ -1,5 +1,6 @@
+;; vim: set expandtab ai textwidth=80:
 ;; Выход в монитор
-        .MACRO  .BEXIT
-        jsr     PC,@140012
-        .ENDM
+                .MACRO  .BEXIT
+                jsr     PC,@140012
+                .ENDM
 

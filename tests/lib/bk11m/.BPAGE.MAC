@@ -1,7 +1,8 @@
+;; vim: set expandtab ai textwidth=80:
 ;; Подключить страницу
 ;; ADDR <> 0 - подключить PAGE с 100000
 ;;      иначе подключить PAGE с 40000
-        .MACRO  .BPAGE,PAGE,ADDR
-        mov     #<ADDR*400>+PAGE,R0
-        jsr     PC,@140034
-        .ENDM
+                .MACRO  .BPAGE,PAGE,ADDR
+                mov     #<ADDR*400>+PAGE,R0
+                jsr     PC,@140034
+                .ENDM

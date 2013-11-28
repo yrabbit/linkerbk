@@ -1,4 +1,5 @@
+;; vim: set expandtab ai textwidth=80:
 ;; === Драйвер клавиатуры
-        .MACRO  .BTTIN
-        jsr     PC,@140076
-	.ENDM
+                .MACRO  .BTTIN
+                jsr     PC,@140076
+                .ENDM

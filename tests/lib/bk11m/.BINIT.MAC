@@ -1,4 +1,5 @@
+;; vim: set expandtab ai textwidth=80:
 ;; Инициализация монитора
-        .MACRO  .BINIT
-        jsr     PC,@140010
-        .ENDM
+                .MACRO  .BINIT
+                jsr     PC,@140010
+                .ENDM

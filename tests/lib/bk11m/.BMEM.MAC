@@ -1,6 +1,7 @@
+;; vim: set expandtab ai textwidth=80:
 ;; Прочитать подключение страниц
 ;; R0 - младший байт --- страница с 40000
 ;;      старший байт --- страница с 100000
-        .MACRO  .BMEM
-        jsr     PC,@140030
-        .ENDM
+                .MACRO  .BMEM
+                jsr     PC,@140030
+                .ENDM

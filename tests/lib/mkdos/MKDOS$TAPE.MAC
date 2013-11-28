@@ -1,7 +1,8 @@
+;; vim: set expandtab ai textwidth=80:
 ;; === Обращение через магнитофонный интерфейс.
 ;; 
-        .MACRO  MKDOS$TAPE,TAPECMD
-        mov TAPECMD,R1
-        jsr PC,@#MKDOS$MAG
-        .ENDM
+                .MACRO  MKDOS$TAPE,TAPECMD
+                mov TAPECMD,R1
+                jsr PC,@#MKDOS$MAG
+                .ENDM
 
