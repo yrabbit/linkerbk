@@ -75,8 +75,7 @@ MACRO-11:
 устройств
 или еще чего-нибудь проще использовать прямое
 присваивание символов как в следующем примере\footnote{$^3$}{Это также пример того,
-как можно написать программу на одних макросах:) Все использованные макросы
-перечисляются в псевдокоманде \verbatim!.MCALL!, кроме того при компиляции нужно
+как можно написать программу на одних макросах:) При компиляции нужно
 указать macro11 каталог с файлами макросов (опция \verbatim!-p!) или определить
 переменную окружения \verbatim!MCALL!. В конце этого документа приведены файлы
 макросов для монитора БК11М и MKDOS.}.
@@ -1729,28 +1728,34 @@ parse_opt(int key, char *arg, struct argp_state *state) {
 
 @* Макросы для монитора БК11М.
 
-Файл lib/.BINIT.MAC
-\listing{tests/lib/.BINIT.MAC}
-Файл lib/.BEXIT.MAC
-\listing{tests/lib/.BEXIT.MAC}
-Файл lib/.BJSR.MAC
-\listing{tests/lib/.BJSR.MAC}
-Файл lib/.BMEM.MAC
-\listing{tests/lib/.BMEM.MAC}
-Файл lib/.BPAGE.MAC
-\listing{tests/lib/.BPAGE.MAC}
-Файл lib/.BWORK.MAC
-\listing{tests/lib/.BWORK.MAC}
-Файл lib/.BSTR.MAC
-\listing{tests/lib/.BSTR.MAC}
-Файл lib/.BTSET.MAC
-\listing{tests/lib/.BTSET.MAC}
-Файл lib/.BTTIN.MAC
-\listing{tests/lib/.BTTIN.MAC}
+Файл lib/bk11m/bk11m.inc
+\listing{tests/lib/bk11m/bk11m.inc}
+Файл lib/bk11m/.BINIT.MAC
+\listing{tests/lib/bk11m/.BINIT.MAC}
+Файл lib/bk11m/.BEXIT.MAC
+\listing{tests/lib/bk11m/.BEXIT.MAC}
+Файл lib/bk11m/.BJSR.MAC
+\listing{tests/lib/bk11m/.BJSR.MAC}
+Файл lib/bk11m/.BMEM.MAC
+\listing{tests/lib/bk11m/.BMEM.MAC}
+Файл lib/bk11m/.BPAGE.MAC
+\listing{tests/lib/bk11m/.BPAGE.MAC}
+Файл lib/bk11m/.BWORK.MAC
+\listing{tests/lib/bk11m/.BWORK.MAC}
+Файл lib/bk11m/.BSTR.MAC
+\listing{tests/lib/bk11m/.BSTR.MAC}
+Файл lib/bk11m/.BTSET.MAC
+\listing{tests/lib/bk11m/.BTSET.MAC}
+Файл lib/bk11m/.BTTIN.MAC
+\listing{tests/lib/bk11m/.BTTIN.MAC}
 @* Макросы для MKDOS.
 
-Файл lib/AFTER\$MKDOS.MAC
-\listing{tests/lib/AFTER$MKDOS.MAC}
+Файл lib/mkdos/mkdos.inc
+\listing{tests/lib/mkdos/mkdos.inc}
+Файл lib/mkdos/AFTER\$MKDOS.MAC
+\listing{tests/lib/mkdos/AFTER$MKDOS.MAC}
+Файл lib/mkdos/MKDOS\$TAPE.MAC
+\listing{tests/lib/mkdos/MKDOS$TAPE.MAC}
 
 @* Индекс.
 

@@ -1,8 +1,9 @@
 ;; vim: set expandtab ai textwidth=80:
                 .TITLE  OVERL
                 .IDENT  /V00.11/
-                .MCALL  .BINIT,.BEXIT,.BSTR,.BTTIN
-                .MCALL  AFTER$MKDOS,MKDOS$TAPE
+                .INCLUDE lib/bk11m/bk11m.inc
+                .INCLUDE lib/mkdos/mkdos.inc
+                ;.MCALL  AFTER$MKDOS,MKDOS$TAPE
 LoadAddr=40000               
 
 ;; Все секции начинаются с 0, поэтому нужно смещение

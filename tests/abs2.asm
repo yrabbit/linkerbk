@@ -1,7 +1,7 @@
 ;; vim: set expandtab ai textwidth=80:
                 .TITLE  TSTAB2
                 .IDENT  /V00.11/
-                .MCALL  .BINIT,.BEXIT,.BTSET,.BSTR,.BTTIN
+                .INCLUDE lib/bk11m/bk11m.inc
 
                 ;; Вектор прерывания от клавиатуры
 KeyboardVect=60
