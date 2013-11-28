@@ -11,7 +11,7 @@ KeyboardPSW=KeyboardVect+2
 Start:          .BINIT                  ; инициализируем монитор БК11М
                 .BTSET  #30204          ; дисплей в 80 символов в строке (и пр.)
 
-                .BSTR   #HelloStr
+                .BPRIN   #HelloStr
                 ;; Запоминаем старый обработчик клавиатуры
                 mov     @#KeyboardVect,OldHandler
                 mov     @#KeyboardPSW,OldHandler+2

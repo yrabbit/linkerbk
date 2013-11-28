@@ -1,8 +1,21 @@
 ;; vim: set expandtab ai textwidth=80:
 ;; === Обращение через магнитофонный интерфейс.
-;; 
                 .MACRO  MKDOS$TAPE,TAPECMD
-                mov TAPECMD,R1
-                jsr PC,@#MKDOS$MAG
+                mov     R0,-(SP)
+                .BWORK  #100000         ; нужно сохранить текущую страницу для
+                swab    R0              ; вызова подпрограмм
+                bic     #177400,R0
+                mov     R0,-(SP)
+
+                .BWORK  #200+MKDOS$PAGE ; страница MKDOS для вызовов
+
+                mov     TAPECMD,R1      ; вызов интерфейса
+                .BJSR   #MKDOS$MAG
+
+                mov     (SP)+,R0
+                add     #200,R0
+                .BWORK  R0
+
+                mov     (SP)+,R0
                 .ENDM
 

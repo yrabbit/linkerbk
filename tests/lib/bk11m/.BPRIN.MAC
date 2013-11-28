@@ -1,0 +1,7 @@
+;; vim: set expandtab ai textwidth=80:
+;; Вывод строки
+                .MACRO  .BPRIN ADDR
+                mov     ADDR,R0
+                jsr     PC,@140160
+                .ENDM
+
