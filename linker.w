@@ -1661,6 +1661,10 @@ static char argp_program_doc[] = "Link MACRO-11 object files";
 @ Распознаются следующие опции:
 \smallskip
 	\item {} {\tt -o} --- имя выходного файла.
+	\item {} {\tt -v} --- вывод дополнительной информации (возможно указание
+	дважды);
+	\item {} {\tt -l NUM} --- создаваемые файлы оверлеев имеют имена длиной
+	не более NUM символов.
 \smallskip
 @<Глобальн...@>=
 static struct argp_option options[] = {@|
