@@ -28,7 +28,7 @@ Start:          AFTER$MKDOS             ; если планируем использовать функции
                 MKDOS$TAPE #TapeParams
 
                 ; вызываем функцию из оверле€
-                jsr     PC,SayHi
+;                jsr     PC,SayHi
 
 
                 .BPRIN  #Loaded
@@ -39,11 +39,13 @@ Loaded:         .ASCIZ  /Overlay loaded./
                 .EVEN
 TapeParams:     .BYTE   3,0                
                 .WORD   LoadAddr,0
-1$:             .ASCII  /overlay-SUBS.ovr/
+1$:             .ASCII  /overlay-SUBS.v/
                 .BLKB   ^D16-<.-1$>
                 .BLKB   ^D16+4
 
-;; ќверлей. 
+;; ==========
+;;  ќверлей. 
+;; ==========
                 .PSECT  SUBS
 .=.+LoadAddr                
 SayHi:          .BPRIN  #HiStr

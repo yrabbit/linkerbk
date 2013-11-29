@@ -170,9 +170,9 @@ char ovrname[200], *ovrptr;
 			fromRadix50(SectDir[i].name[0], sect_name);
 			fromRadix50(SectDir[i].name[1], sect_name + 3);
 			/* ־גונכוט */
-			for (i = 5; i >= 0; --i) {
-				if (sect_name[i] != ' ') {
-					sect_name[i + 1] = 0;
+			for (j = 5; j >= 0; --j) {
+				if (sect_name[j] != ' ') {
+					sect_name[j + 1] = 0;
 					break;
 				}
 			}
