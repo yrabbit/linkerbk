@@ -155,6 +155,7 @@ char ovrname[200], *ovrptr;
 @<Создаём файл результата@>=
 	for (i = 0; i < NumSections; ++i) {
 		if (SectDir[i].transfer_addr != 1 && SectDir[i].len != 0) {
+			/* Основной файл */
 			fresult = fopen(config.output_filename, "w");
 			if (fresult == NULL) {
 				PRINTERR("Can't create %s\n", config.output_filename);
@@ -168,7 +169,20 @@ char ovrname[200], *ovrptr;
 		if (SectDir[i].len != 0 && SectDir[i].min_addr != -1) {
 			fromRadix50(SectDir[i].name[0], sect_name);
 			fromRadix50(SectDir[i].name[1], sect_name + 3);
-			strcpy(ovrname, config.output_filename);
+			/* Оверлеи */
+			for (i = 5; i >= 0; --i) {
+				if (sect_name[i] != ' ') {
+					sect_name[i + 1] = 0;
+					break;
+				}
+			}
+			strncpy(ovrname, config.output_filename,
+				config.max_filename_len - strlen(sect_name) - 3);
+			ovrname[config.max_filename_len - strlen(sect_name) - 3] = '\0';
+			strcat(ovrname, "-");
+			strcat(ovrname, sect_name);
+			strcat(ovrname, ".v");
+#if 0			
 			ovrptr = ovrname + strlen(ovrname) + 1;
 			*(ovrptr - 1) = '-';
 			for (j = 0; j < 6; ++j) {
@@ -176,6 +190,7 @@ char ovrname[200], *ovrptr;
 			}
 			ovrptr[j] = '\0';
 			strcat(ovrname, ".ovr");
+#endif			
 			fresult = fopen(ovrname, "w");
 			if (fresult == NULL) {
 				PRINTERR("Can't create %s\n", ovrname);
@@ -1651,6 +1666,7 @@ static char argp_program_doc[] = "Link MACRO-11 object files";
 static struct argp_option options[] = {@|
 	{ "output", 'o', "FILENAME", 0, "Output filename"},@|
 	{ "verbose", 'v', NULL, 0, "Verbose output"},@!
+	{ "length", 'l', "LENGTH", 0, "Max overlay file name length"},@!
 	{ 0 }@/
 };
 static error_t parse_opt(int, char*, struct argp_state*);@!
@@ -1661,12 +1677,15 @@ static struct argp argp = {options, parse_opt, NULL, argp_program_doc};
 typedef struct _Arguments {
 	int  verbosity;
 	char output_filename[FILENAME_MAX]; /* Имя файла с текстом */
+	int  max_filename_len;	    /* Максимальная длина имени выходных
+						файлов. По умолчанию для MKDOS
+						равна 14 */
 	char **objnames;		    /* Имена объектных файлов
 					 objnames[?] == NULL --> конец имен*/
 } Arguments;
 
 @ @<Глобальные...@>=
-static Arguments config = { 0, {0}, NULL, };
+static Arguments config = { 0, {0}, 14, NULL, };
 
 
 @ Задачей данного простого парсера является заполнение структуры |Arguments| из указанных
@@ -1677,6 +1696,12 @@ parse_opt(int key, char *arg, struct argp_state *state) {
  Arguments *arguments;
 	arguments = (Arguments*)state->input;
  switch (key) {
+	case 'l':
+		arguments->max_filename_len = atoi(arg);
+		/* не меньше x-SECTIO.v */
+		if (arguments->max_filename_len < 1 + 6 + 2)
+		  arguments->max_filename_len = 1 + 1 + 6 + 2;
+		break;
 	case 'v':
 		++arguments->verbosity;
 		break;
