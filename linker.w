@@ -96,7 +96,7 @@ main(int argc, char *argv[])
 {
 	@<Данные программы@>@;
 	const char *objname;
-	int i, j, all_resolved;
+	int i, j, not_resolved;
 
 	@<Разобрать командную строку@>@;
 	@<Инициализация каталога секций@>@;
@@ -107,15 +107,15 @@ main(int argc, char *argv[])
 
 	/* Поочередно обрабатываем все заданные объектные файлы */
 	cur_input = 0;
-	all_resolved = 1;
+	not_resolved = 1;
 	num_start_addresses = 0;
 	while ((objname = config.objnames[cur_input]) != NULL) {
 		@<Открыть объектный файл@>@;
 		handleOneFile(fobj);
 		/* Разрешаем глобальные ссылки */
-		all_resolved = resolveGlobals();
+		not_resolved = resolveGlobals();
 		/* Разрешаем сложные ссылки */
-		all_resolved += resolveComplex();
+		not_resolved += resolveComplex();
 		fclose(fobj);
 		++cur_input;
 		if (num_start_addresses >= 2) {
@@ -123,9 +123,13 @@ main(int argc, char *argv[])
 			return(1);
 		}
 	}
-	@<Вывод таблицы глобальных символов@>@;
-	@<Заполнить пределы секций@>@;
-	@<Создаём файл результата@>@;
+	if (not_resolved == 0) {
+		@<Вывод таблицы глобальных символов@>@;
+		@<Заполнить пределы секций@>@;
+		@<Создаём файл результата@>@;
+	} else {
+		@<Вывод неразрешенных ссылок@>@;
+	}
 	@<Очистка каталога секций@>@;
 	@<Освободить список сложных выражений@>@;
 	@<Освободить список ссылок@>@;
@@ -140,13 +144,47 @@ static int num_start_addresses;
 
 @ @<Данные программы@>=
 FILE *fobj, *fresult;
-char ovrname[200], *ovrptr;
+char ovrname[200];
 
 @ @<Открыть объектный файл@>=
 	fobj = fopen(objname,"r");
 	if (fobj== NULL) {
 		PRINTERR("Can't open %s\n", objname);
 		return(ERR_CANTOPEN);
+	}
+@ @<Вывод неразрешенных ссылок@>=
+	if (!simpleRefIsEmpty()) {
+		printf("Unresolved simple refs:\n");
+		for (i = SRefList.pool[0].link; i != 0; i = SRefList.pool[i].link) {
+			fromRadix50(SRefList.pool[i].name[0], name);
+			fromRadix50(SRefList.pool[i].name[1], name + 3);
+			fromRadix50(SectDir[SRefList.pool[i].sect].name[0], sect_name);
+			fromRadix50(SectDir[SRefList.pool[i].sect].name[1], sect_name + 3);
+			printf("i: %4d, name: %s, disp: %s/%o, file: %s\n", i, name, sect_name,
+				SRefList.pool[i].disp, config.objnames[SRefList.pool[i].obj_file]);
+		}
+	}
+	if (!complexRefIsEmpty()) {
+		printf("Unresolved complex refs:\n");
+		for (i = CExprList.pool[0].link; i != 0; i = CExprList.pool[i].link) {
+			for (j = 0; j < CExprList.pool[i].NumTerms; ++j) {
+				if (CExprList.pool[i].terms[j].code ==
+					CREL_OP_FETCH_GLOBAL) {
+					fromRadix50(CExprList.pool[i].terms[j].un.name[0], name);
+					fromRadix50(CExprList.pool[i].terms[j].un.name[1],
+						name + 3);
+					printf("i: %4d, j: %2d, name: %s, file:"
+						" %s\n", i, j, name,
+						config.objnames[CExprList.pool[i].obj_file]);
+				}
+			}
+#if 0		
+			fromRadix50(SectDir[CExprList.pool[i].sect].name[0], sect_name);
+			fromRadix50(SectDir[CExprList.pool[i].sect].name[1], sect_name + 3);
+			printf("i: %4d, disp: %s/%o, file: %s\n", i, sect_name,
+				CExprList.pool[i].disp, config.objnames[CExprList.pool[i].obj_file]);
+#endif				
+		}
 	}
 
 @ По заданному в командной строке имени создаётся файл с программной секцией,
@@ -182,15 +220,6 @@ char ovrname[200], *ovrptr;
 			strcat(ovrname, "-");
 			strcat(ovrname, sect_name);
 			strcat(ovrname, ".v");
-#if 0			
-			ovrptr = ovrname + strlen(ovrname) + 1;
-			*(ovrptr - 1) = '-';
-			for (j = 0; j < 6; ++j) {
-				ovrptr[j] = sect_name[j] == ' ' ? '_' : sect_name[j];
-			}
-			ovrptr[j] = '\0';
-			strcat(ovrname, ".ovr");
-#endif			
 			fresult = fopen(ovrname, "w");
 			if (fresult == NULL) {
 				PRINTERR("Can't create %s\n", ovrname);
@@ -828,7 +857,7 @@ resolveGlobals(void) {
 			}
 		}
 	}
-	return (simpleRefIsEmpty() && 1);
+	return (!simpleRefIsEmpty());
 }
 
 @ Для разрешения прямой ссылки записываем адрес ссылки поле операнда.

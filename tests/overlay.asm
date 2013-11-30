@@ -28,7 +28,7 @@ Start:          AFTER$MKDOS             ; если планируем использовать функции
                 MKDOS$TAPE #TapeParams
 
                 ; вызываем функцию из оверлея
-;                jsr     PC,SayHi
+                jsr     PC,SayHi
 
 
                 .BPRIN  #Loaded
