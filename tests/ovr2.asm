@@ -1,12 +1,13 @@
 ;; vim: set expandtab ai textwidth=80:
-                .TITLE  OVRTST
-                .IDENT  /V00.11/
+                .TITLE  OVR2
+                .IDENT  /V01.00/
                 .INCLUDE lib/bk11m/bk11m.inc
                 .INCLUDE lib/mkdos/mkdos.inc
 
-;; Адрес с которого располагается оверлеи                
+;; Адрес с которого располагается оверлеи
 LoadAddr=40000               
 
+                .PSECT  MAIN
 ;; Все секции начинаются с 0, поэтому нужно смещение
 .=.+1000
 Start:          AFTER$MKDOS             ; если планируем использовать функции
@@ -39,19 +40,14 @@ Loaded:         .ASCIZ  /Overlay loaded./
                 .EVEN
 TapeParams:     .BYTE   3,0                
                 .WORD   LoadAddr,0
-1$:             .ASCII  /overlay-SUBS.v/        ; Имя файла оверлея
+1$:             .ASCII  /ovr2-SUBS.v/        ; Имя файла оверлея
                 .BLKB   ^D16-<.-1$>
                 .BLKB   ^D16+4
 
-;; =============================================
-;;  Оверлей. 
-;;  Содержит подпрограмму SayHi, которая 
-;;  выводит на экран строчку.
-;; =============================================
+;; Пустая секция, только задается начальное смещение
+;; В других .asm файлах секции с именем SUBS будут дописываться 
+;; сюда
                 .PSECT  SUBS
 .=.+LoadAddr                
-SayHi:          .BPRIN  #HiStr
-                rts     PC
-HiStr:          .ASCIZ  /I'm overlay!/                
                 .END    Start
 

@@ -1,7 +1,9 @@
 ;; vim: set expandtab ai textwidth=80:
 ;; Установка режима
-                .MACRO  .BTSET,MODE
+                .MACRO  .BTSET MODE
+                .IF DIF R0 <MODE>
                 mov     MODE,R0
+                .ENDC
                 jsr     PC,@140132
                 .ENDM
 
