@@ -1,0 +1,7 @@
+;; vim: set expandtab ai textwidth=80:
+;; Вызвать подпрограмму из рабочей страницы
+                .MACRO  .BJMP ADDR
+                mov     ADDR,-(SP)
+                jsr     PC,@140056
+                .ENDM
+
