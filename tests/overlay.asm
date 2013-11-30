@@ -33,7 +33,8 @@ Start:          AFTER$MKDOS             ; если планируем использовать функции
 
                 .BPRIN  #Loaded
                 .BTTIN
-                .BEXIT
+                BACK$TO$MKDOS
+
 Prompt:         .ASCIZ  /Press any key to load overlay.../
 Loaded:         .ASCIZ  /Overlay loaded./
                 .EVEN
