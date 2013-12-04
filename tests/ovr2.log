@@ -1,0 +1,11 @@
+Module:OVR2  
+  Ident: V01.00
+Module:PART2 
+  Ident: V01.00
+=Global Definitions:
+SAYHI : SUBS  /40000
+=Sections:
+. ABS., addr: 0x61dd10, len: 0, min addr: 37777777777, current start: 0
+      , addr: 0x62dd20, len: 0, min addr: 37777777777, current start: 0
+MAIN  , addr: 0x63dd30, len: 1340, min addr: 1000, current start: 0
+SUBS  , addr: 0x64dd40, len: 40027, min addr: 40000, current start: 40000
