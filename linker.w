@@ -210,12 +210,6 @@ char ovrname[200];
 						config.objnames[CExprList.pool[i].obj_file]);
 				}
 			}
-#if 0		
-			fromRadix50(SectDir[CExprList.pool[i].sect].name[0], sect_name);
-			fromRadix50(SectDir[CExprList.pool[i].sect].name[1], sect_name + 3);
-			printf("i: %4d, disp: %s/%o, file: %s\n", i, sect_name,
-				CExprList.pool[i].disp, config.objnames[CExprList.pool[i].obj_file]);
-#endif				
 		}
 	}
 
@@ -452,8 +446,9 @@ typedef struct _GSymDefEntry {
 	uint8_t	flags;
 	uint8_t	 sect; /* Номер секции, в которой определен глобальный символ */
 	uint16_t addr; /* Адрес символа в секции */
+	uint8_t	obj_file; /* Файл, где определен символ */
 } GSymDefEntry;
-
+ 
 
 @ @<Глобальные переменные...@>=
 static GSymDefEntry GSymDef[MAX_GLOBALS];
@@ -469,12 +464,26 @@ static int NumGlobalDefs;
 @c
 static void
 handleGlobalSymbol(GSD_Entry *entry) {
+	char name[7];
+	int found_sym;
+
 	if (entry->flags & GLOBAL_DEFINITION_MASK) {
+		/* Повторное определение глобального символа */
+		if ((found_sym = findGlobalSym(entry->name)) != -1) {
+			fromRadix50(entry->name[0], name);
+			fromRadix50(entry->name[1], name + 3);
+			PRINTERR("Global definition conflict: %s in %s"
+				" conflicts with %s.\n", name,
+				config.objnames[cur_input],
+				config.objnames[found_sym]);
+			exit(EXIT_FAILURE);
+		}
 		GSymDef[NumGlobalDefs].name[0] = entry->name[0];
 		GSymDef[NumGlobalDefs].name[1] = entry->name[1];
 		GSymDef[NumGlobalDefs].flags = entry->flags;
 		GSymDef[NumGlobalDefs].sect = CurSect;
 		GSymDef[NumGlobalDefs].addr = SectDir[CurSect].start + entry->value;
+		GSymDef[NumGlobalDefs].obj_file = cur_input;
 		++NumGlobalDefs;
 	}
 	if (config.verbosity >= 2) {
