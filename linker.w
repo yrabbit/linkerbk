@@ -226,19 +226,9 @@ char ovrname[200];
 писать в дополнительные файлы (оверлеи).
 @<Создаём файл результата@>=
 	for (i = 0; i < NumSections; ++i) {
-		if (SectDir[i].transfer_addr != 1 && SectDir[i].len != 0) {
-			/* Основной файл */
-			fresult = fopen(config.output_filename, "w");
-			if (fresult == NULL) {
-				PRINTERR("Can't create %s\n", config.output_filename);
-				return(ERR_CANTCREATE);
-			}
-			fwrite(SectDir[i].text + SectDir[i].min_addr, 
-				SectDir[i].len - SectDir[i].min_addr, 1, fresult);
-			fclose(fresult);
-			continue;
-		}
-		if (SectDir[i].len != 0 && SectDir[i].min_addr != -1) {
+		if (SectDir[i].len != 0 && SectDir[i].min_addr != -1 &&
+		    SectDir[i].transfer_addr == 1 &&
+		    !(SectDir[i].flags & PSECT_SAVE_MASK)) {
 			fromRadix50(SectDir[i].name[0], sect_name);
 			fromRadix50(SectDir[i].name[1], sect_name + 3);
 			/* Оверлеи */
@@ -257,6 +247,32 @@ char ovrname[200];
 			fresult = fopen(ovrname, "w");
 			if (fresult == NULL) {
 				PRINTERR("Can't create %s\n", ovrname);
+				return(ERR_CANTCREATE);
+			}
+			fwrite(SectDir[i].text + SectDir[i].min_addr, 
+				SectDir[i].len - SectDir[i].min_addr, 1, fresult);
+			fclose(fresult);
+			continue;
+		}
+		if (SectDir[i].transfer_addr != 1 && SectDir[i].len != 0) {
+			/* Основной файл */
+			fresult = fopen(config.output_filename, "w");
+			if (fresult == NULL) {
+				PRINTERR("Can't create %s\n", config.output_filename);
+				return(ERR_CANTCREATE);
+			}
+			fwrite(SectDir[i].text + SectDir[i].min_addr, 
+				SectDir[i].len - SectDir[i].min_addr, 1, fresult);
+			fclose(fresult);
+			continue;
+		}
+	}
+	/* Дописываем в главный модуль секции с флагом SAVE */
+	for (i = 0; i < NumSections; ++i) {
+		if (SectDir[i].flags & PSECT_SAVE_MASK) {
+			fresult = fopen(config.output_filename, "a");
+			if (fresult == NULL) {
+				PRINTERR("Can't create %s\n", config.output_filename);
 				return(ERR_CANTCREATE);
 			}
 			fwrite(SectDir[i].text + SectDir[i].min_addr, 
@@ -605,7 +621,7 @@ static int CurSect;
 	RLD_i += 8;
 
 @ Адрес запуска, равный единице игнорируется.
-@ @<Установить адрес запуска@>=
+@<Установить адрес запуска@>=
 	sect = findSection(entry->name);
 	SectDir[sect].transfer_addr = entry->value;
 	if (entry->value != 1) ++num_start_addresses;
@@ -654,8 +670,8 @@ findSection(uint16_t *name) {
 
 	found = -1;
 	for (i = 0; i < NumSections; ++i) {
-		if (SectDir[i].name[0] == name[0] && SectDir[i].name[1] ==
-		name[1]) {
+		if (SectDir[i].name[0] == name[0] && 
+		    SectDir[i].name[1] == name[1]) {
 			found = i;
 			break;
 		}
