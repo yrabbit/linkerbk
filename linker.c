@@ -1023,7 +1023,7 @@ CurSect= NumSections;
 
 }else{
 
-SectDir[CurSect].start+= SectDir[CurSect].len;
+SectDir[CurSect].start= SectDir[CurSect].len;
 SectDir[CurSect].len+= entry->value;
 }
 /*94:*/

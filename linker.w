@@ -571,7 +571,7 @@ handleProgramSection(GSD_Entry *entry) {
 		@<Добавить программную секцию@>@;
 	} else {
 		// Изменить смещение секции в модуле
-		SectDir[CurSect].start += SectDir[CurSect].len;
+		SectDir[CurSect].start = SectDir[CurSect].len;
 		SectDir[CurSect].len += entry->value;
 	}
 	@<Добавить перекодировку секции@>@;
