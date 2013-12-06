@@ -23,10 +23,11 @@ Start:          AFTER$MKDOS             ; если планируем использовать функции
                 .BTTIN
 
                 ; пересылаем секцию
-                mov     Sizes+2,R1
-                mov     #LoadAddr,R2
-                mov     2(R1),R0         ; секция должна начинаться с .LIMIT
-                sub     (R1),R0
+                mov     #EndOfMain,R1   ; секция должна начинаться с .LIMIT
+                mov     (R1),R2         ; R2 --- начальный адрес для размещения
+                                        ; секции
+                mov     2(R1),R0        ; R0 --- длина секции 
+                sub     R2,R0
                 ror     R0
                 adc     R0
 1$:             mov    (R1)+,(R2)+                
@@ -41,6 +42,6 @@ Start:          AFTER$MKDOS             ; если планируем использовать функции
 Prompt:         .ASCIZ  /Press any key to load overlay.../
 Loaded:         .ASCIZ  /Overlay loaded./
                 .EVEN
-Sizes:          .LIMIT
+EndOfMain:      ; Это конец основной секции и начало перемешаемой секции
                 .END    Start
 
