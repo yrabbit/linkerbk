@@ -1,6 +1,6 @@
 % vim: set ai textwidth=80:
 \input lib/verbatim
-\input macro
+\input cwebmac-ru
 
 \def\version{0.6}
 \font\twentycmcsc=cmcsc10 at 20 truept

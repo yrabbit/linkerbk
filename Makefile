@@ -18,7 +18,6 @@ linker.dvi: linker.tex
 	$(TEX) linker.tex
 
 linker.tex: linker.w
-	echo '\input cwebmac-ru' >macro.tex
 	$(CWEAVE) linker.w
 
 linkbk: linker.c

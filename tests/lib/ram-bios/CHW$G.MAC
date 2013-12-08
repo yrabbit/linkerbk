@@ -1,0 +1,10 @@
+;; vim: set expandtab ai textwidth=80:
+;; Чтение или обмен одного слова
+;; R0 --- обмен/чтение.
+;; R1 --- 0 - обмен, иначе чтение.
+;; Если при возврате R1 = 0 после возврата, то ошибка.
+                .MACRO  CHW$G ADRSME, NASEG
+                JSR     R5,@#167517
+                .WORD   ADRSME, NASEG
+                .ENDM
+

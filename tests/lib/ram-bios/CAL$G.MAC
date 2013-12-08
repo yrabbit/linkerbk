@@ -1,0 +1,7 @@
+;; vim: set expandtab ai textwidth=80:
+;;
+                .MACRO  CAL$G ADRSME,NASEG
+                JSR     R5,@#167516
+                .WORD   ADRSME, NASEG
+                .ENDM
+
