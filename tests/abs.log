@@ -2,5 +2,5 @@ Module:TSTABS
   Ident: V00.10
 =Global Definitions:
 =Sections:
-. ABS., addr: 0x61dd10, len: 62, min addr: 37777777777, current start: 0
-      , addr: 0x62dd20, len: 1044, min addr: 1000, current start: 0
+. ABS., addr: 0x61ed10, len: 62, min addr: 37777777777, current start: 0
+      , addr: 0x62ed20, len: 1044, min addr: 1000, current start: 0
