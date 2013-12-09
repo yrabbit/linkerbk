@@ -623,12 +623,22 @@ static int NumSections;
 @c
 static void
 handleProgramSection(GSD_Entry *entry) {
+	char name[7];
 	@<Вывести отладочную информацию по секциям@>@;
 	CurSect = findSection(entry->name);
 	if (CurSect == -1) {
 		@<Добавить программную секцию@>@;
 	} else {
-		// Изменить смещение секции в модуле
+		/* Проверяем не изменились ли флаги секции */
+		if (SectDir[CurSect].flags != entry->flags) {
+			fromRadix50(SectDir[CurSect].name[0], name);
+			fromRadix50(SectDir[CurSect].name[1], name + 3);
+			PRINTERR("Section %s flags conflict. Old flags: %x, new"
+			" flags: %x. File: %s\n", name, SectDir[CurSect].flags,
+			entry->flags, config.objnames[cur_input]);
+			exit(EXIT_FAILURE);
+		}
+		/* Изменить смещение секции в модуле */
 		SectDir[CurSect].start = SectDir[CurSect].len;
 		SectDir[CurSect].len += entry->value;
 	}
