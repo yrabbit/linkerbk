@@ -7,7 +7,6 @@
 
 \datethis
 
-@* Введение.
 \vskip 120pt
 \centerline{\twentycmcsc linkbk}
 \vskip 20pt
@@ -17,6 +16,7 @@
 \vskip 10pt
 \centerline{Yellow Rabbit}
 \vskip 80pt
+
 Линковщик предназначен для получения исполняемых файлов из объектных файлов
 ассемблера MACRO-11\footnote{$^1$}{Использовалась BSD-версия ассемблера
 Richard'а
@@ -256,7 +256,8 @@ char ovrname[200];
 
 @ По заданному в командной строке имени создается файл с программной секцией,
 для которой указан адрес запуска. Остальные секции ненулевой длины планируется
-писать в дополнительные файлы (оверлеи).
+писать в дополнительные файлы (оверлеи). Исключение составляют секции с
+атрибутом \verbatim!SAV!~---~такие секции дописываются в исполняемый файл.
 @<Создаем файл результата@>=
 	for (i = 0; i < NumSections; ++i) {
 		if (SectDir[i].len != 0 && SectDir[i].min_addr != -1 &&
@@ -274,9 +275,7 @@ char ovrname[200];
 			strncpy(ovrname, config.output_filename,
 				config.max_filename_len - strlen(sect_name) - 3);
 			ovrname[config.max_filename_len - strlen(sect_name) - 3] = '\0';
-			strcat(ovrname, "-");
-			strcat(ovrname, sect_name);
-			strcat(ovrname, ".v");
+			strcat(ovrname, "-"); strcat(ovrname, sect_name); strcat(ovrname, ".v");
 			fresult = fopen(ovrname, "w");
 			if (fresult == NULL) {
 				PRINTERR("Can't create %s\n", ovrname);
@@ -335,6 +334,7 @@ static void
 handleOneFile(FILE *fobj) {
 	BinaryBlock obj_header;
 	int first_byte, i;
+	int crc;
 	unsigned int block_len;
 	char name[7];
 	
@@ -349,17 +349,33 @@ handleOneFile(FILE *fobj) {
 		/* Читаем заголовок */
 		ungetc(first_byte, fobj);
 		if (fread(&obj_header, sizeof(BinaryBlock), 1, fobj) != 1) {
-			PRINTERR("IO error: %s\n",config.objnames[cur_input]);
-			break;
+			PRINTERR("IO error while read header: %s\n",config.objnames[cur_input]);
+			exit(EXIT_FAILURE);
 		}
 		if (obj_header.zero != 0) continue;
 		block_len = obj_header.len - 4;
 		PRINTVERB(2, "Binary block found. Length:%o\n", block_len);
 
+		if (obj_header.len == 0) {
+			PRINTERR("Block len = 0: %s\n",config.objnames[cur_input]);
+			exit(EXIT_FAILURE);
+		}
+
 		/* Читаем тело блока с контрольной суммой */
 		if (fread(block_body, block_len + 1, 1, fobj) != 1) {
-			PRINTERR("IO error: %s\n", config.objnames[cur_input]);
-			break;
+			PRINTERR("IO error while read block: %s\n", config.objnames[cur_input]);
+			exit(EXIT_FAILURE);
+		}@|
+		/* Подсчет контрольной суммы */@|
+		crc = - obj_header.one - obj_header.zero - obj_header.len % 256
+			- obj_header.len / 256;
+		for (i = 0; i < block_len; ++i) {
+			crc -= block_body[i];
+		}
+		crc &= 0xff;	
+		if (crc != block_body[block_len]) {
+			PRINTERR("Bad block checksum: %s\n", config.objnames[cur_input]);
+			exit(EXIT_FAILURE);
 		}
 		@<Обработать блок@>@;
 	}
@@ -1901,6 +1917,7 @@ parse_opt(int key, char *arg, struct argp_state *state) {
   (fmt), ## a) : 0)
 #define PRINTERR(fmt, a...) fprintf(stderr, (fmt), ## a) 
 
+@** Макросы.
 @* Макросы для монитора БК11М.
 
 Файл lib/bk11m/bk11m.inc

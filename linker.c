@@ -1,8 +1,8 @@
-/*8:*/
+/*7:*/
 #line 161 "linker.w"
 
-/*117:*/
-#line 1888 "linker.w"
+/*116:*/
+#line 1904 "linker.w"
 
 #include <string.h> 
 #include <stdlib.h> 
@@ -13,7 +13,7 @@
 
 #include <argp.h> 
 
-/*:117*/
+/*:116*/
 #line 162 "linker.w"
 
 #define GSD_MODULE_NAME 0
@@ -77,17 +77,17 @@
 
 #line 163 "linker.w"
 
-/*110:*/
-#line 1797 "linker.w"
+/*109:*/
+#line 1813 "linker.w"
 
 const char*argp_program_version= "linkbk, "VERSION;
 const char*argp_program_bug_address= "<yellowrabbit@bk.ru>";
 
-/*:110*/
+/*:109*/
 #line 164 "linker.w"
 
-/*15:*/
-#line 324 "linker.w"
+/*14:*/
+#line 323 "linker.w"
 
 typedef struct _BinaryBlock{
 uint8_t one;
@@ -96,8 +96,8 @@ uint16_t len;
 }BinaryBlock;
 
 
-/*:15*//*20:*/
-#line 426 "linker.w"
+/*:14*//*19:*/
+#line 442 "linker.w"
 
 typedef struct _GSD_Entry{
 uint16_t name[2];
@@ -106,8 +106,8 @@ uint8_t type;
 uint16_t value;
 }GSD_Entry;
 
-/*:20*//*24:*/
-#line 501 "linker.w"
+/*:19*//*23:*/
+#line 517 "linker.w"
 
 typedef struct _GSymDefEntry{
 uint16_t name[2];
@@ -118,8 +118,8 @@ uint8_t obj_file;
 }GSymDefEntry;
 
 
-/*:24*//*32:*/
-#line 602 "linker.w"
+/*:23*//*31:*/
+#line 618 "linker.w"
 
 typedef struct _SectionDirEntry{
 uint16_t name[2];
@@ -131,8 +131,8 @@ uint16_t transfer_addr;
 uint16_t last_load_addr;
 uint8_t*text;
 }SectionDirEntry;
-/*:32*//*47:*/
-#line 794 "linker.w"
+/*:31*//*46:*/
+#line 810 "linker.w"
 
 typedef struct _SimpleRefEntry{
 uint16_t link;
@@ -151,8 +151,8 @@ int num_allocations;
 
 }SimpleRefList;
 
-/*:47*//*61:*/
-#line 1010 "linker.w"
+/*:46*//*60:*/
+#line 1026 "linker.w"
 
 typedef struct _LimListEntry{
 uint16_t link;
@@ -166,8 +166,8 @@ int num_allocations;
 
 }LimList;
 
-/*:61*//*69:*/
-#line 1099 "linker.w"
+/*:60*//*68:*/
+#line 1115 "linker.w"
 
 typedef struct _RLD_Entry{
 struct{
@@ -183,16 +183,16 @@ RLD_Entry ent;
 uint16_t constant;
 }RLD_Const_Entry;
 
-/*:69*//*83:*/
-#line 1321 "linker.w"
+/*:68*//*82:*/
+#line 1337 "linker.w"
 
 typedef struct _CurSectEntry{
 uint16_t name[2];
 uint8_t global_sect;
 }CurSectEntry;
 
-/*:83*//*88:*/
-#line 1351 "linker.w"
+/*:82*//*87:*/
+#line 1367 "linker.w"
 
 typedef struct _ComplexTerm{
 uint8_t code;
@@ -223,8 +223,8 @@ uint16_t num_allocations;
 ComplexExprEntry*pool;
 }ComplexExpressionList;
 
-/*:88*//*113:*/
-#line 1823 "linker.w"
+/*:87*//*112:*/
+#line 1839 "linker.w"
 
 typedef struct _Arguments{
 int verbosity;
@@ -236,118 +236,118 @@ char**objnames;
 
 }Arguments;
 
-/*:113*/
+/*:112*/
 #line 165 "linker.w"
 
-/*9:*/
+/*8:*/
 #line 214 "linker.w"
 
 static int cur_input;
 static int num_start_addresses;
 
-/*:9*//*17:*/
-#line 370 "linker.w"
+/*:8*//*16:*/
+#line 386 "linker.w"
 
 static uint8_t block_body[65536+1];
 
-/*:17*//*25:*/
-#line 511 "linker.w"
+/*:16*//*24:*/
+#line 527 "linker.w"
 
 static GSymDefEntry GSymDef[MAX_GLOBALS];
 static int NumGlobalDefs;
 
-/*:25*//*29:*/
-#line 583 "linker.w"
+/*:24*//*28:*/
+#line 599 "linker.w"
 
 static int findGlobalSym(uint16_t*);
 
-/*:29*//*33:*/
-#line 613 "linker.w"
+/*:28*//*32:*/
+#line 629 "linker.w"
 
 static SectionDirEntry SectDir[MAX_PROG_SECTIONS];
 static int NumSections;
-/*:33*//*35:*/
-#line 648 "linker.w"
+/*:32*//*34:*/
+#line 664 "linker.w"
 
 static int CurSect;
 
-/*:35*//*44:*/
-#line 744 "linker.w"
+/*:34*//*43:*/
+#line 760 "linker.w"
 
 static int findSection(uint16_t*);
 
 
-/*:44*//*48:*/
-#line 812 "linker.w"
+/*:43*//*47:*/
+#line 828 "linker.w"
 
 static SimpleRefList SRefList;
 static int simpleRefIsEmpty(void);
-/*:48*//*54:*/
-#line 909 "linker.w"
+/*:47*//*53:*/
+#line 925 "linker.w"
 
 static void addSimpleRef(RLD_Entry*);
 static uint16_t delSimpleRef(uint16_t);
 
-/*:54*//*60:*/
-#line 1003 "linker.w"
+/*:53*//*59:*/
+#line 1019 "linker.w"
 
 static int resolveGlobals(void);
 
-/*:60*//*62:*/
-#line 1023 "linker.w"
+/*:59*//*61:*/
+#line 1039 "linker.w"
 
 static LimList LimitList;
 static void addLimit(RLD_Entry*);
 static void resolveLimit(void);
 
-/*:62*//*84:*/
-#line 1327 "linker.w"
+/*:61*//*83:*/
+#line 1343 "linker.w"
 
 static CurSectEntry curSections[MAX_PROG_SECTIONS];
 static int NumCurSections;
 
-/*:84*//*89:*/
-#line 1381 "linker.w"
+/*:83*//*88:*/
+#line 1397 "linker.w"
 
 static ComplexExpressionList CExprList;
 static int complexRefIsEmpty(void);
 static void addComplexExpr(RLD_Entry*);
 static uint16_t delComplexExpr(uint16_t);
-/*:89*//*94:*/
-#line 1456 "linker.w"
+/*:88*//*93:*/
+#line 1472 "linker.w"
 
 static uint16_t CurComplexExpr;
 static void addComplexTerm(uint8_t,uint16_t*,uint8_t,uint16_t,uint16_t);
 
-/*:94*//*100:*/
-#line 1640 "linker.w"
+/*:93*//*99:*/
+#line 1656 "linker.w"
 
 static int resolveComplex(void);
 static int resolveTerms(ComplexExprEntry*);
 static uint16_t calcTerms(ComplexExprEntry*);
 
-/*:100*//*106:*/
-#line 1752 "linker.w"
+/*:99*//*105:*/
+#line 1768 "linker.w"
 
 static void handleGlobalSymbol(GSD_Entry*);
 static void handleProgramSection(GSD_Entry*);
 static void handleTextSection(uint8_t*,unsigned int);
 static void handleRelocationDirectory(uint8_t*,int);
 
-/*:106*//*108:*/
-#line 1786 "linker.w"
+/*:105*//*107:*/
+#line 1802 "linker.w"
 
 static void handleOneFile(FILE*);
 static void handleGSD(int);
 static void fromRadix50(int,char*);
 
-/*:108*//*111:*/
-#line 1801 "linker.w"
+/*:107*//*110:*/
+#line 1817 "linker.w"
 
 static char argp_program_doc[]= "Link MACRO-11 object files";
 
-/*:111*//*112:*/
-#line 1812 "linker.w"
+/*:110*//*111:*/
+#line 1828 "linker.w"
 
 static struct argp_option options[]= {
 {"output",'o',"FILENAME",0,"Output filename"},
@@ -358,47 +358,47 @@ static struct argp_option options[]= {
 static error_t parse_opt(int,char*,struct argp_state*);
 static struct argp argp= {options,parse_opt,NULL,argp_program_doc};
 
-/*:112*//*114:*/
-#line 1834 "linker.w"
+/*:111*//*113:*/
+#line 1850 "linker.w"
 
 static Arguments config= {0,{0},14,NULL,};
 
 
-/*:114*//*118:*/
-#line 1899 "linker.w"
+/*:113*//*117:*/
+#line 1915 "linker.w"
 
 #define PRINTVERB(level, fmt, a...) (((config.verbosity) >= level) ? printf(\
   (fmt), ## a) : 0)
 #define PRINTERR(fmt, a...) fprintf(stderr, (fmt), ## a)
 
-/*:118*/
+/*:117*/
 #line 166 "linker.w"
 
 int
 main(int argc,char*argv[])
 {
-/*10:*/
+/*9:*/
 #line 218 "linker.w"
 
 FILE*fobj,*fresult;
 char ovrname[200];
 
-/*:10*//*30:*/
-#line 586 "linker.w"
+/*:9*//*29:*/
+#line 602 "linker.w"
 
 char name[7];
-/*:30*//*40:*/
-#line 694 "linker.w"
+/*:29*//*39:*/
+#line 710 "linker.w"
 
 char sect_name[7];
-/*:40*/
+/*:39*/
 #line 170 "linker.w"
 
 const char*objname;
 int i,j,not_resolved;
 
-/*116:*/
-#line 1876 "linker.w"
+/*115:*/
+#line 1892 "linker.w"
 
 argp_parse(&argp,argc,argv,0,0,&config);
 
@@ -411,28 +411,28 @@ PRINTERR("No input filenames specified\n");
 return(ERR_SYNTAX);
 }
 
-/*:116*/
+/*:115*/
 #line 174 "linker.w"
 
-/*39:*/
-#line 690 "linker.w"
+/*38:*/
+#line 706 "linker.w"
 
 NumSections= 0;
 memset(SectDir,0,sizeof(SectDir));
 
-/*:39*/
+/*:38*/
 #line 175 "linker.w"
 
-/*26:*/
-#line 515 "linker.w"
+/*25:*/
+#line 531 "linker.w"
 
 NumGlobalDefs= 0;
 
-/*:26*/
+/*:25*/
 #line 176 "linker.w"
 
-/*52:*/
-#line 886 "linker.w"
+/*51:*/
+#line 902 "linker.w"
 
 SRefList.pool= (SimpleRefEntry*)malloc(sizeof(SimpleRefEntry)*
 INITIAL_SIMPLE_REF_LIST_SIZE);
@@ -441,11 +441,11 @@ SRefList.pool[0].link= 0;
 SRefList.avail= 0;
 SRefList.poolmin= 1;
 
-/*:52*/
+/*:51*/
 #line 177 "linker.w"
 
-/*91:*/
-#line 1394 "linker.w"
+/*90:*/
+#line 1410 "linker.w"
 
 CExprList.pool= (ComplexExprEntry*)malloc(sizeof(ComplexExprEntry)*
 INITIAL_COMPLEX_EXPR_LIST_SIZE);
@@ -454,18 +454,18 @@ CExprList.pool[0].link= 0;
 CExprList.avail= 0;
 CExprList.poolmin= 1;
 
-/*:91*/
+/*:90*/
 #line 178 "linker.w"
 
-/*64:*/
-#line 1056 "linker.w"
+/*63:*/
+#line 1072 "linker.w"
 
 LimitList.pool= (LimListEntry*)malloc(sizeof(LimListEntry)*
 INITIAL_LIMIT_LIST_SIZE);
 LimitList.num_allocations= 1;
 LimitList.num_limits= 0;
 
-/*:64*/
+/*:63*/
 #line 179 "linker.w"
 
 
@@ -474,7 +474,7 @@ cur_input= 0;
 not_resolved= 1;
 num_start_addresses= 0;
 while((objname= config.objnames[cur_input])!=NULL){
-/*11:*/
+/*10:*/
 #line 222 "linker.w"
 
 fobj= fopen(objname,"r");
@@ -482,7 +482,7 @@ if(fobj==NULL){
 PRINTERR("Can't open %s\n",objname);
 return(ERR_CANTOPEN);
 }
-/*:11*/
+/*:10*/
 #line 186 "linker.w"
 
 handleOneFile(fobj);
@@ -498,8 +498,8 @@ return(1);
 }
 }
 if(not_resolved==0){
-/*31:*/
-#line 588 "linker.w"
+/*30:*/
+#line 604 "linker.w"
 
 if(config.verbosity>=1){
 PRINTVERB(1,"=Global Definitions:\n");
@@ -512,18 +512,18 @@ PRINTVERB(1,"%s: %s/%o\n",name,sect_name,
 GSymDef[i].addr);
 }
 }
-/*:31*/
+/*:30*/
 #line 200 "linker.w"
 
-/*66:*/
-#line 1075 "linker.w"
+/*65:*/
+#line 1091 "linker.w"
 
 resolveLimit();
-/*:66*/
+/*:65*/
 #line 201 "linker.w"
 
-/*13:*/
-#line 260 "linker.w"
+/*12:*/
+#line 261 "linker.w"
 
 for(i= 0;i<NumSections;++i){
 if(SectDir[i].len!=0&&SectDir[i].min_addr!=-1&&
@@ -541,9 +541,7 @@ break;
 strncpy(ovrname,config.output_filename,
 config.max_filename_len-strlen(sect_name)-3);
 ovrname[config.max_filename_len-strlen(sect_name)-3]= '\0';
-strcat(ovrname,"-");
-strcat(ovrname,sect_name);
-strcat(ovrname,".v");
+strcat(ovrname,"-");strcat(ovrname,sect_name);strcat(ovrname,".v");
 fresult= fopen(ovrname,"w");
 if(fresult==NULL){
 PRINTERR("Can't create %s\n",ovrname);
@@ -581,11 +579,11 @@ fclose(fresult);
 }
 }
 
-/*:13*/
+/*:12*/
 #line 202 "linker.w"
 
 }else{
-/*12:*/
+/*11:*/
 #line 228 "linker.w"
 
 if(!simpleRefIsEmpty()){
@@ -616,12 +614,12 @@ config.objnames[CExprList.pool[i].obj_file]);
 }
 }
 
-/*:12*/
+/*:11*/
 #line 204 "linker.w"
 
 }
-/*41:*/
-#line 696 "linker.w"
+/*40:*/
+#line 712 "linker.w"
 
 PRINTVERB(1,"=Sections:\n");
 for(i= 0;i<NumSections;++i){
@@ -635,11 +633,11 @@ if(SectDir[i].text!=NULL)
 free(SectDir[i].text);
 }
 
-/*:41*/
+/*:40*/
 #line 206 "linker.w"
 
-/*92:*/
-#line 1402 "linker.w"
+/*91:*/
+#line 1418 "linker.w"
 
 if(config.verbosity>=2){
 PRINTVERB(2,"=Complex Refs:\n avail: %d, poolmin: %d\n",
@@ -653,11 +651,11 @@ CExprList.pool[i].disp,config.objnames[CExprList.pool[i].obj_file]);
 }
 free(CExprList.pool);
 
-/*:92*/
+/*:91*/
 #line 207 "linker.w"
 
-/*53:*/
-#line 894 "linker.w"
+/*52:*/
+#line 910 "linker.w"
 
 if(config.verbosity>=2){
 PRINTVERB(2,"=Simple Refs:\n avail: %d, poolmin: %d\n",
@@ -673,11 +671,11 @@ SRefList.pool[i].disp,config.objnames[SRefList.pool[i].obj_file]);
 }
 free(SRefList.pool);
 
-/*:53*/
+/*:52*/
 #line 208 "linker.w"
 
-/*65:*/
-#line 1062 "linker.w"
+/*64:*/
+#line 1078 "linker.w"
 
 if(config.verbosity>=2){
 PRINTVERB(2,"=Limit Refs:\n num_limits: %d\n",
@@ -690,27 +688,28 @@ LimitList.pool[i].disp);
 }
 }
 free(LimitList.pool);
-/*:65*/
+/*:64*/
 #line 209 "linker.w"
 
 return(0);
 }
 
-/*:8*//*16:*/
-#line 333 "linker.w"
+/*:7*//*15:*/
+#line 332 "linker.w"
 
 static void
 handleOneFile(FILE*fobj){
 BinaryBlock obj_header;
 int first_byte,i;
+int crc;
 unsigned int block_len;
 char name[7];
 
-/*85:*/
-#line 1331 "linker.w"
+/*84:*/
+#line 1347 "linker.w"
 
 NumCurSections= 0;
-/*:85*/
+/*:84*/
 #line 341 "linker.w"
 
 while(!feof(fobj)){
@@ -723,37 +722,53 @@ if(first_byte==EOF)goto end;
 
 ungetc(first_byte,fobj);
 if(fread(&obj_header,sizeof(BinaryBlock),1,fobj)!=1){
-PRINTERR("IO error: %s\n",config.objnames[cur_input]);
-break;
+PRINTERR("IO error while read header: %s\n",config.objnames[cur_input]);
+exit(EXIT_FAILURE);
 }
 if(obj_header.zero!=0)continue;
 block_len= obj_header.len-4;
 PRINTVERB(2,"Binary block found. Length:%o\n",block_len);
 
+if(obj_header.len==0){
+PRINTERR("Block len = 0: %s\n",config.objnames[cur_input]);
+exit(EXIT_FAILURE);
+}
+
 
 if(fread(block_body,block_len+1,1,fobj)!=1){
-PRINTERR("IO error: %s\n",config.objnames[cur_input]);
-break;
+PRINTERR("IO error while read block: %s\n",config.objnames[cur_input]);
+exit(EXIT_FAILURE);
 }
-/*18:*/
-#line 374 "linker.w"
+
+crc= -obj_header.one-obj_header.zero-obj_header.len%256
+-obj_header.len/256;
+for(i= 0;i<block_len;++i){
+crc-= block_body[i];
+}
+crc&= 0xff;
+if(crc!=block_body[block_len]){
+PRINTERR("Bad block checksum: %s\n",config.objnames[cur_input]);
+exit(EXIT_FAILURE);
+}
+/*17:*/
+#line 390 "linker.w"
 
 PRINTVERB(2,"  Block type: %o, ",block_body[0]);
 switch(block_body[0]){
 case 1:
 PRINTVERB(2,"GSD\n");
-/*19:*/
-#line 424 "linker.w"
+/*18:*/
+#line 440 "linker.w"
 
 handleGSD(block_len);
-/*:19*/
-#line 379 "linker.w"
+/*:18*/
+#line 395 "linker.w"
 
 break;
 case 2:
 PRINTVERB(2,"ENDGSD\n");
-/*87:*/
-#line 1337 "linker.w"
+/*86:*/
+#line 1353 "linker.w"
 
 PRINTVERB(2,"=Sections recoding.\n");
 for(i= 0;i<NumCurSections;++i){
@@ -763,30 +778,30 @@ PRINTVERB(2,"sect: %3d, %s, global sect: %d\n",i,name,
 curSections[i].global_sect);
 }
 
-/*:87*/
-#line 383 "linker.w"
+/*:86*/
+#line 399 "linker.w"
 
 break;
 case 3:
 PRINTVERB(2,"TXT\n");
-/*104:*/
-#line 1746 "linker.w"
+/*103:*/
+#line 1762 "linker.w"
 
 handleTextSection(block_body,block_len);
 
-/*:104*/
-#line 387 "linker.w"
+/*:103*/
+#line 403 "linker.w"
 
 break;
 case 4:
 PRINTVERB(2,"RLD\n");
-/*105:*/
-#line 1749 "linker.w"
+/*104:*/
+#line 1765 "linker.w"
 
 handleRelocationDirectory(block_body,block_len);
 
-/*:105*/
-#line 391 "linker.w"
+/*:104*/
+#line 407 "linker.w"
 
 break;
 case 5:
@@ -806,15 +821,15 @@ PRINTERR("Bad block type: %o : %s\n",
 block_body[0],config.objnames[cur_input]);
 }
 
-/*:18*/
-#line 364 "linker.w"
+/*:17*/
+#line 380 "linker.w"
 
 }
 end:;
 }
 
-/*:16*//*21:*/
-#line 434 "linker.w"
+/*:15*//*20:*/
+#line 450 "linker.w"
 
 static void
 handleGSD(int len){
@@ -824,14 +839,14 @@ char name[7];
 
 for(i= 2;i<len;i+= 8){
 entry= (GSD_Entry*)(block_body+i);
-/*22:*/
-#line 493 "linker.w"
+/*21:*/
+#line 509 "linker.w"
 
 fromRadix50(entry->name[0],name);
 fromRadix50(entry->name[1],name+3);
 
-/*:22*/
-#line 443 "linker.w"
+/*:21*/
+#line 459 "linker.w"
 
 PRINTVERB(2,"    Entry name: '%s', type: %o --- ",name,entry->type);
 switch(entry->type){
@@ -852,41 +867,41 @@ break;
 case GSD_TRANFER_ADDRESS:
 
 PRINTVERB(2,"TransferAddress, offset:%o.\n",entry->value);
-/*37:*/
-#line 668 "linker.w"
+/*36:*/
+#line 684 "linker.w"
 
 sect= findSection(entry->name);
 SectDir[sect].transfer_addr= entry->value;
 if(entry->value!=1)++num_start_addresses;
 
-/*:37*/
-#line 463 "linker.w"
+/*:36*/
+#line 479 "linker.w"
 
 break;
 case GSD_GLOBAL_SYMBOL_NAME:
 
 PRINTVERB(2,"GlobalSymbolName, flags:%o, value:%o.\n",
 entry->flags,entry->value);
-/*102:*/
-#line 1740 "linker.w"
+/*101:*/
+#line 1756 "linker.w"
 
 handleGlobalSymbol(entry);
 
-/*:102*/
-#line 469 "linker.w"
+/*:101*/
+#line 485 "linker.w"
 
 break;
 case GSD_PSECT_NAME:
 
 PRINTVERB(2,"PSectName, flags:%o, max length:%o.\n",
 entry->flags,entry->value);
-/*103:*/
-#line 1743 "linker.w"
+/*102:*/
+#line 1759 "linker.w"
 
 handleProgramSection(entry);
 
-/*:103*/
-#line 475 "linker.w"
+/*:102*/
+#line 491 "linker.w"
 
 break;
 case GDS_IDENT:
@@ -905,8 +920,8 @@ entry->type,config.objnames[cur_input]);
 }
 }
 
-/*:21*//*27:*/
-#line 522 "linker.w"
+/*:20*//*26:*/
+#line 538 "linker.w"
 
 static void
 handleGlobalSymbol(GSD_Entry*entry){
@@ -952,8 +967,8 @@ PRINTVERB(2,"Absolute.\n");
 }
 }
 
-/*:27*//*28:*/
-#line 568 "linker.w"
+/*:26*//*27:*/
+#line 584 "linker.w"
 
 static int findGlobalSym(uint16_t*name){
 int found,i;
@@ -969,14 +984,14 @@ break;
 return(found);
 }
 
-/*:28*//*34:*/
-#line 623 "linker.w"
+/*:27*//*33:*/
+#line 639 "linker.w"
 
 static void
 handleProgramSection(GSD_Entry*entry){
 char name[7];
-/*45:*/
-#line 748 "linker.w"
+/*44:*/
+#line 764 "linker.w"
 
 if(config.verbosity>=2){
 PRINTVERB(2,"        Flags: ");
@@ -1012,13 +1027,13 @@ PRINTVERB(2,"Iref.\n");
 }
 }
 
-/*:45*/
-#line 627 "linker.w"
+/*:44*/
+#line 643 "linker.w"
 
 CurSect= findSection(entry->name);
 if(CurSect==-1){
-/*43:*/
-#line 728 "linker.w"
+/*42:*/
+#line 744 "linker.w"
 
 SectDir[NumSections].name[0]= entry->name[0];
 SectDir[NumSections].name[1]= entry->name[1];
@@ -1035,8 +1050,8 @@ SectDir[NumSections].text= (uint8_t*)calloc(1,DEFAULT_SECTION_LEN);
 CurSect= NumSections;
 ++NumSections;
 
-/*:43*/
-#line 630 "linker.w"
+/*:42*/
+#line 646 "linker.w"
 
 }else{
 
@@ -1052,19 +1067,19 @@ exit(EXIT_FAILURE);
 SectDir[CurSect].start= SectDir[CurSect].len;
 SectDir[CurSect].len+= entry->value;
 }
-/*86:*/
-#line 1333 "linker.w"
+/*85:*/
+#line 1349 "linker.w"
 
 curSections[NumCurSections].name[0]= SectDir[CurSect].name[0];
 curSections[NumCurSections].name[1]= SectDir[CurSect].name[1];
 curSections[NumCurSections++].global_sect= CurSect;
-/*:86*/
-#line 645 "linker.w"
+/*:85*/
+#line 661 "linker.w"
 
 }
 
-/*:34*//*38:*/
-#line 677 "linker.w"
+/*:33*//*37:*/
+#line 693 "linker.w"
 
 static void
 handleTextSection(uint8_t*block,unsigned int len){
@@ -1077,8 +1092,8 @@ memcpy(SectDir[CurSect].text+SectDir[CurSect].start+addr,block+4,len-4);
 SectDir[CurSect].last_load_addr= SectDir[CurSect].start+addr;
 }
 
-/*:38*//*42:*/
-#line 710 "linker.w"
+/*:37*//*41:*/
+#line 726 "linker.w"
 
 static int
 findSection(uint16_t*name){
@@ -1095,16 +1110,16 @@ break;
 
 return(found);
 }
-/*:42*//*49:*/
-#line 816 "linker.w"
+/*:41*//*48:*/
+#line 832 "linker.w"
 
 static int
 simpleRefIsEmpty(void){
 return(SRefList.pool[0].link==0);
 }
 
-/*:49*//*50:*/
-#line 823 "linker.w"
+/*:48*//*49:*/
+#line 839 "linker.w"
 
 static void
 addSimpleRef(RLD_Entry*ref){
@@ -1152,8 +1167,8 @@ new_entry->constant= ((RLD_Const_Entry*)ref)->constant;
 }
 }
 
-/*:50*//*51:*/
-#line 872 "linker.w"
+/*:49*//*50:*/
+#line 888 "linker.w"
 
 static uint16_t
 delSimpleRef(uint16_t ref_i){
@@ -1166,8 +1181,8 @@ SRefList.avail= ref_i;
 return(link);
 }
 
-/*:51*//*55:*/
-#line 917 "linker.w"
+/*:50*//*54:*/
+#line 933 "linker.w"
 
 static int
 resolveGlobals(void){
@@ -1184,15 +1199,15 @@ continue;
 if(SRefList.pool[ref].type==
 RLD_CMD_GLOBAL_RELOCATION){
 
-/*56:*/
-#line 975 "linker.w"
+/*55:*/
+#line 991 "linker.w"
 
 dest_addr= 
 (uint16_t*)(SectDir[SRefList.pool[ref].sect].text+SRefList.pool[ref].disp);
 *dest_addr= GSymDef[global].addr;
 
-/*:56*/
-#line 933 "linker.w"
+/*:55*/
+#line 949 "linker.w"
 
 
 SRefList.pool[prev_ref].link= delSimpleRef(ref);
@@ -1202,15 +1217,15 @@ continue;
 if(SRefList.pool[ref].type==
 RLD_CMD_GLOBAL_DISPLACED_RELOCATION){
 
-/*58:*/
-#line 990 "linker.w"
+/*57:*/
+#line 1006 "linker.w"
 
 dest_addr= 
 (uint16_t*)(SectDir[SRefList.pool[ref].sect].text+SRefList.pool[ref].disp);
 *dest_addr= GSymDef[global].addr-(SRefList.pool[ref].disp+2);
 
-/*:58*/
-#line 942 "linker.w"
+/*:57*/
+#line 958 "linker.w"
 
 SRefList.pool[prev_ref].link= 
 delSimpleRef(ref);
@@ -1221,16 +1236,16 @@ continue;
 if(SRefList.pool[ref].type==
 RLD_CMD_GLOBAL_ADDITIVE_RELOCATION){
 
-/*57:*/
-#line 982 "linker.w"
+/*56:*/
+#line 998 "linker.w"
 
 dest_addr= 
 (uint16_t*)(SectDir[SRefList.pool[ref].sect].text+SRefList.pool[ref].disp);
 *dest_addr= GSymDef[global].addr+
 SRefList.pool[ref].constant;
 
-/*:57*/
-#line 952 "linker.w"
+/*:56*/
+#line 968 "linker.w"
 
 SRefList.pool[prev_ref].link= 
 delSimpleRef(ref);
@@ -1241,15 +1256,15 @@ continue;
 if(SRefList.pool[ref].type==
 RLD_CMD_GLOBAL_ADDITIVE_DISPLACED_RELOCATION){
 
-/*59:*/
-#line 998 "linker.w"
+/*58:*/
+#line 1014 "linker.w"
 
 dest_addr= 
 (uint16_t*)(SectDir[SRefList.pool[ref].sect].text+SRefList.pool[ref].disp);
 *dest_addr= GSymDef[global].addr-(SRefList.pool[ref].disp+2)+
 SRefList.pool[ref].constant;
-/*:59*/
-#line 962 "linker.w"
+/*:58*/
+#line 978 "linker.w"
 
 SRefList.pool[prev_ref].link= 
 delSimpleRef(ref);
@@ -1262,8 +1277,8 @@ continue;
 return(!simpleRefIsEmpty());
 }
 
-/*:55*//*63:*/
-#line 1029 "linker.w"
+/*:54*//*62:*/
+#line 1045 "linker.w"
 
 static void
 addLimit(RLD_Entry*ref){
@@ -1291,8 +1306,8 @@ new_entry->sect= CurSect;
 ++LimitList.num_limits;
 }
 
-/*:63*//*67:*/
-#line 1077 "linker.w"
+/*:62*//*66:*/
+#line 1093 "linker.w"
 
 static void
 resolveLimit(void){
@@ -1307,8 +1322,8 @@ dest_dir[1]= SectDir[LimitList.pool[i].sect].len;
 }
 }
 
-/*:67*//*70:*/
-#line 1129 "linker.w"
+/*:66*//*69:*/
+#line 1145 "linker.w"
 
 static void
 handleRelocationDirectory(uint8_t*block,int len){
@@ -1324,36 +1339,36 @@ PRINTVERB(2,"    cmd: %o --- ",entry->cmd.type);
 switch(entry->cmd.type){
 case RLD_CMD_INTERNAL_RELOCATION:
 PRINTVERB(2,"Internal Relocation.\n");
-/*71:*/
-#line 1208 "linker.w"
+/*70:*/
+#line 1224 "linker.w"
 
 PRINTVERB(2,"      Disp: %o, +Const: %o.\n",entry->disp,entry->value[0]);
 dest_addr= (uint16_t*)(SectDir[CurSect].text+
 SectDir[CurSect].last_load_addr+entry->disp-4);
 *dest_addr= SectDir[CurSect].start+entry->value[0];
 RLD_i+= 4;
-/*:71*/
-#line 1144 "linker.w"
+/*:70*/
+#line 1160 "linker.w"
 
 break;
 case RLD_CMD_GLOBAL_RELOCATION:
 PRINTVERB(2,"Global Relocation.\n");
-/*73:*/
-#line 1223 "linker.w"
+/*72:*/
+#line 1239 "linker.w"
 
 fromRadix50(entry->value[0],gname);
 fromRadix50(entry->value[1],gname+3);
 PRINTVERB(2,"      Disp: %o, Name: %s.\n",entry->disp,gname);
 addSimpleRef(entry);
 RLD_i+= 6;
-/*:73*/
-#line 1148 "linker.w"
+/*:72*/
+#line 1164 "linker.w"
 
 break;
 case RLD_CMD_INTERNAL_DISPLACED_RELOCATION:
 PRINTVERB(2,"Internal Displaced Relocation.\n");
-/*72:*/
-#line 1215 "linker.w"
+/*71:*/
+#line 1231 "linker.w"
 
 PRINTVERB(2,"      Disp: %o, +Const: %o.\n",entry->disp,entry->value[0]);
 dest_addr= (uint16_t*)(SectDir[CurSect].text+
@@ -1361,14 +1376,14 @@ SectDir[CurSect].last_load_addr+entry->disp-4);
 *dest_addr= entry->value[0]-SectDir[CurSect].last_load_addr-
 entry->disp+4-2;
 RLD_i+= 4;
-/*:72*/
-#line 1152 "linker.w"
+/*:71*/
+#line 1168 "linker.w"
 
 break;
 case RLD_CMD_GLOBAL_DISPLACED_RELOCATION:
 PRINTVERB(2,"Global Displaced Relocation.\n");
-/*74:*/
-#line 1230 "linker.w"
+/*73:*/
+#line 1246 "linker.w"
 
 fromRadix50(entry->value[0],gname);
 fromRadix50(entry->value[1],gname+3);
@@ -1376,14 +1391,31 @@ PRINTVERB(2,"      Disp: %o, Name: %s.\n",entry->disp,gname);
 addSimpleRef(entry);
 RLD_i+= 6;
 
-/*:74*/
-#line 1156 "linker.w"
+/*:73*/
+#line 1172 "linker.w"
 
 break;
 case RLD_CMD_GLOBAL_ADDITIVE_RELOCATION:
 PRINTVERB(2,"Global Additive Relocation.\n");
+/*74:*/
+#line 1254 "linker.w"
+
+const_entry= (RLD_Const_Entry*)entry;
+fromRadix50(entry->value[0],gname);
+fromRadix50(entry->value[1],gname+3);
+PRINTVERB(2,"      Disp: %o, Name: %s, +Const: %o.\n",entry->disp,gname,
+const_entry->constant);
+addSimpleRef(entry);
+RLD_i+= 8;
+
+/*:74*/
+#line 1176 "linker.w"
+
+break;
+case RLD_CMD_GLOBAL_ADDITIVE_DISPLACED_RELOCATION:
+PRINTVERB(2,"Global Additive Displaced Relocation.\n");
 /*75:*/
-#line 1238 "linker.w"
+#line 1264 "linker.w"
 
 const_entry= (RLD_Const_Entry*)entry;
 fromRadix50(entry->value[0],gname);
@@ -1394,30 +1426,13 @@ addSimpleRef(entry);
 RLD_i+= 8;
 
 /*:75*/
-#line 1160 "linker.w"
-
-break;
-case RLD_CMD_GLOBAL_ADDITIVE_DISPLACED_RELOCATION:
-PRINTVERB(2,"Global Additive Displaced Relocation.\n");
-/*76:*/
-#line 1248 "linker.w"
-
-const_entry= (RLD_Const_Entry*)entry;
-fromRadix50(entry->value[0],gname);
-fromRadix50(entry->value[1],gname+3);
-PRINTVERB(2,"      Disp: %o, Name: %s, +Const: %o.\n",entry->disp,gname,
-const_entry->constant);
-addSimpleRef(entry);
-RLD_i+= 8;
-
-/*:76*/
-#line 1165 "linker.w"
+#line 1181 "linker.w"
 
 break;
 case RLD_CMD_LOCATION_COUNTER_DEFINITION:
 PRINTVERB(2,"Location Counter Definition.\n");
-/*36:*/
-#line 652 "linker.w"
+/*35:*/
+#line 668 "linker.w"
 
 const_entry= (RLD_Const_Entry*)entry;
 fromRadix50(entry->value[0],gname);
@@ -1433,39 +1448,39 @@ SectDir[CurSect].start;
 }
 RLD_i+= 8;
 
-/*:36*/
-#line 1169 "linker.w"
+/*:35*/
+#line 1185 "linker.w"
 
 break;
 case RLD_CMD_LOCATION_COUNTER_MODIFICATION:
 PRINTVERB(2,"Location Counter Modification.\n");
-/*77:*/
-#line 1258 "linker.w"
+/*76:*/
+#line 1274 "linker.w"
 
 PRINTVERB(2,"      +Const: %o.\n",entry->value[0]);
 RLD_i+= 4;
 
-/*:77*/
-#line 1173 "linker.w"
+/*:76*/
+#line 1189 "linker.w"
 
 break;
 case RLD_CMD_PROGRAM_LIMITS:
 PRINTVERB(2,"Program Limits.\n");
-/*78:*/
-#line 1263 "linker.w"
+/*77:*/
+#line 1279 "linker.w"
 
 PRINTVERB(2,"      Disp: %o.\n",entry->disp);
 addLimit(entry);
 RLD_i+= 2;
 
-/*:78*/
-#line 1177 "linker.w"
+/*:77*/
+#line 1193 "linker.w"
 
 break;
 case RLD_CMD_PSECT_RELOCATION:
 PRINTVERB(2,"PSect Relocation.\n");
-/*79:*/
-#line 1269 "linker.w"
+/*78:*/
+#line 1285 "linker.w"
 
 fromRadix50(entry->value[0],gname);
 fromRadix50(entry->value[1],gname+3);
@@ -1476,14 +1491,14 @@ SectDir[CurSect].last_load_addr+entry->disp-4);
 *dest_addr= SectDir[sect].start;
 RLD_i+= 6;
 
-/*:79*/
-#line 1181 "linker.w"
+/*:78*/
+#line 1197 "linker.w"
 
 break;
 case RLD_CMD_PSECT_DISPLACED_RELOCATION:
 PRINTVERB(2,"PSect Displaced Relocation.\n");
-/*80:*/
-#line 1280 "linker.w"
+/*79:*/
+#line 1296 "linker.w"
 
 fromRadix50(entry->value[0],gname);
 fromRadix50(entry->value[1],gname+3);
@@ -1495,14 +1510,14 @@ SectDir[CurSect].last_load_addr+entry->disp-4);
 entry->disp+4-2;
 RLD_i+= 6;
 
-/*:80*/
-#line 1185 "linker.w"
+/*:79*/
+#line 1201 "linker.w"
 
 break;
 case RLD_CMD_PSECT_ADDITIVE_RELOCATION:
 PRINTVERB(2,"PSect Additive Relocation.\n");
-/*81:*/
-#line 1292 "linker.w"
+/*80:*/
+#line 1308 "linker.w"
 
 const_entry= (RLD_Const_Entry*)entry;
 fromRadix50(entry->value[0],gname);
@@ -1515,14 +1530,14 @@ SectDir[CurSect].last_load_addr+entry->disp-4);
 *dest_addr= SectDir[sect].start+const_entry->constant;
 RLD_i+= 8;
 
-/*:81*/
-#line 1189 "linker.w"
+/*:80*/
+#line 1205 "linker.w"
 
 break;
 case RLD_CMD_PSECT_ADDITIVE_DISPLACED_RELOCATION:
 PRINTVERB(2,"PSect Additive Displaced Relocation.\n");
-/*82:*/
-#line 1305 "linker.w"
+/*81:*/
+#line 1321 "linker.w"
 
 const_entry= (RLD_Const_Entry*)entry;
 fromRadix50(entry->value[0],gname);
@@ -1536,14 +1551,14 @@ SectDir[CurSect].last_load_addr+entry->disp-4);
 entry->disp+4-2+const_entry->constant;
 RLD_i+= 8;
 
-/*:82*/
-#line 1193 "linker.w"
+/*:81*/
+#line 1209 "linker.w"
 
 break;
 case RLD_CMD_COMPLEX_RELOCATION:
 PRINTVERB(2,"Complex Relocation.\n");
-/*101:*/
-#line 1661 "linker.w"
+/*100:*/
+#line 1677 "linker.w"
 
 addComplexExpr(entry);
 PRINTVERB(2,"      Disp: %o.\n        ",entry->disp);
@@ -1623,8 +1638,8 @@ addComplexTerm(block[RLD_i],NULL,0,0,0);
 ++RLD_i;
 PRINTVERB(2,"\n");
 
-/*:101*/
-#line 1197 "linker.w"
+/*:100*/
+#line 1213 "linker.w"
 
 break;
 default:
@@ -1635,16 +1650,16 @@ return;
 }
 }
 
-/*:70*//*90:*/
-#line 1388 "linker.w"
+/*:69*//*89:*/
+#line 1404 "linker.w"
 
 static int
 complexRefIsEmpty(void){
 return(CExprList.pool[0].link==0);
 }
 
-/*:90*//*93:*/
-#line 1416 "linker.w"
+/*:89*//*92:*/
+#line 1432 "linker.w"
 
 static void
 addComplexExpr(RLD_Entry*ref){
@@ -1685,8 +1700,8 @@ new_entry->disp= ref->disp-4+SectDir[CurSect].last_load_addr;
 new_entry->sect= CurSect;
 CurComplexExpr= new_index;
 }
-/*:93*//*95:*/
-#line 1461 "linker.w"
+/*:92*//*94:*/
+#line 1477 "linker.w"
 
 static void
 addComplexTerm(uint8_t code,uint16_t*name,uint8_t sect,uint16_t disp,
@@ -1712,8 +1727,8 @@ default:
 }
 }
 
-/*:95*//*96:*/
-#line 1488 "linker.w"
+/*:94*//*95:*/
+#line 1504 "linker.w"
 
 static uint16_t
 delComplexExpr(uint16_t ref_i){
@@ -1726,8 +1741,8 @@ CExprList.avail= ref_i;
 return(link);
 }
 
-/*:96*//*97:*/
-#line 1505 "linker.w"
+/*:95*//*96:*/
+#line 1521 "linker.w"
 
 static int
 resolveComplex(void){
@@ -1762,8 +1777,8 @@ i= prev;
 
 return(!complexRefIsEmpty());
 }
-/*:97*//*98:*/
-#line 1540 "linker.w"
+/*:96*//*97:*/
+#line 1556 "linker.w"
 
 static int
 resolveTerms(ComplexExprEntry*entry){
@@ -1798,8 +1813,8 @@ default:;
 return(not_resolved);
 }
 
-/*:98*//*99:*/
-#line 1578 "linker.w"
+/*:97*//*98:*/
+#line 1594 "linker.w"
 
 static uint16_t
 calcTerms(ComplexExprEntry*entry){
@@ -1862,8 +1877,8 @@ PRINTERR("Bad term code: %o\n",term->code);
 return(*sp);
 }
 
-/*:99*//*107:*/
-#line 1761 "linker.w"
+/*:98*//*106:*/
+#line 1777 "linker.w"
 
 static void fromRadix50(int n,char*name){
 int i,x;
@@ -1889,8 +1904,8 @@ case 000:name[i]= ' ';break;
 name[3]= '\0';
 }
 
-/*:107*//*115:*/
-#line 1840 "linker.w"
+/*:106*//*114:*/
+#line 1856 "linker.w"
 
 static error_t
 parse_opt(int key,char*arg,struct argp_state*state){
@@ -1923,4 +1938,4 @@ return(ARGP_ERR_UNKNOWN);
 }
 return(0);
 }
-/*:115*/
+/*:114*/
