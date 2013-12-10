@@ -50,6 +50,7 @@ Cat.Flags.ExName=200    ; Есть расширенное имя модуля.
 
 ;; Команды работы с каталогом модулей
 CreateModule=0
+DeleteModule=2
 ReadWriteCatRecord=10
 GetVersion=12                
 

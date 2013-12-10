@@ -87,8 +87,14 @@ Start:          AFTER$MKDOS
 
                 ; Забираем результаты
                 MOV$G   "CY,#Pic-YCode,NASEG.Current,#50000,#PicSize/2
-                MOV$G   "DY,#Pic-YCode,NASEG.Current,#PicSize+50000,#PicSize/2+1
+                MOV$G   "DY,#Pic-YCode,NASEG.Current,#PicSize+50000,#PicSize/2
 
+                ; Удаляем модули
+                mov     #"CY,R1
+                CAT$    #DeleteModule
+                mov     #"DY,R1
+                CAT$    #DeleteModule
+                
                 .BEXIT                  ; выход
 
 Module:         .BLKB   20              ; данные добавляемого модуля
