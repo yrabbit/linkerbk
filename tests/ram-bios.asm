@@ -67,8 +67,8 @@ Start:          AFTER$MKDOS
                 .BPRIN  R4
 
                 ; Пересылка подпрограммы в оба модуля
-                MOV$G   NASEG.Current,#YCode,"CY,0,#YCodeEnd-YCode
-                MOV$G   NASEG.Current,#YCode,"DY,0,#YCodeEnd-YCode
+                MOV$G   NASEG.Current,#YCode,"CY,0,<#YCodeEnd-YCode>/2+1
+                MOV$G   NASEG.Current,#YCode,"DY,0,<#YCodeEnd-YCode>/2+1
 
                 ; Прочитать первое слово из второго модуля
                 clr     R0
@@ -80,7 +80,14 @@ Start:          AFTER$MKDOS
                 .BPRIN  R4
 
                 ; Выполняем обе подпрограммы
-                ;CAL$G   0,"CY
+                mov     #123,R3
+                CAL$G   0,"CY
+                mov     #346,R3
+                CAL$G   0,"DY
+
+                ; Забираем результаты
+                MOV$G   "CY,#Pic-YCode,NASEG.Current,#50000,#PicSize/2
+                MOV$G   "DY,#Pic-YCode,NASEG.Current,#PicSize+50000,#PicSize/2+1
 
                 .BEXIT                  ; выход
 
@@ -95,8 +102,7 @@ WordStr:        .ASCIZ  /First word of module: /
 NumberBuf:      .BLKB   7
                 .EVEN
 ; Перевод числа из R0 с строку восьмеричных цифр в буфере R1
-ToStr:                    
-                mov     #5,R2
+ToStr:          mov     #5,R2
                 add     R2,R1
                 inc     R1
                 clrb    (R1)
@@ -115,12 +121,11 @@ ToStr:
 
 ; Подпрограмма, помещаемая в память SMK и выполняющаяся прямо в этой памяти.
 ; 
-PicSize=5000    ; память, занятная картинкой
-YCode:          rts     PC
-                mov     PC,R1
-                add     #Pic-.,R1
+PicSize=2400*2  ; память, занятная картинкой
+YCode:          mov     PC,R1
+                add     #Pic - .,R1
                 mov     #PicSize,R0
-1$:             movb    #237,(R1)+
+1$:             movb    R3,(R1)+
                 sob     R0,1$
                 rts     PC
 Pic:            .BLKB   PicSize
