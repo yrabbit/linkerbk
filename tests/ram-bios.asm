@@ -39,7 +39,7 @@ Start:          AFTER$MKDOS
                 clr     R2
                 mov     #"CY,Cat.Name(R1)
                 mov     #<YCodeEnd-YCode>/2+1,Cat.Len(R1)
-                mov     #<Cat.Flags.NoSplit ! Cat.Flags.Run ! Cat.Flags.Del ! Cat.Flags.NoMove>,Cat.Flags(R1)
+                mov     #<Cat.Flags.NoSplit ! Cat.Flags.Run ! Cat.Flags.Del>,Cat.Flags(R1)
                 CAT$    #CreateModule
                 ; Читаем смещение в сегменте добавленного модуля
                 CAT$    #ReadWriteCatRecord
@@ -55,7 +55,7 @@ Start:          AFTER$MKDOS
                 clr     R2
                 mov     #"DY,Cat.Name(R1)
                 mov     #<YCodeEnd-YCode>/2+1,Cat.Len(R1)
-                mov     #<Cat.Flags.NoSplit ! Cat.Flags.Run ! Cat.Flags.Del ! Cat.Flags.NoMove>,Cat.Flags(R1)
+                mov     #<Cat.Flags.NoSplit ! Cat.Flags.Run ! Cat.Flags.Del>,Cat.Flags(R1)
                 CAT$    #CreateModule
                 ; Читаем смещение в сегменте добавленного модуля
                 CAT$    #ReadWriteCatRecord
@@ -66,34 +66,18 @@ Start:          AFTER$MKDOS
                 .BSTR   #SegmentOffStr
                 .BPRIN  R4
 
-                ; Получить адрес сегмента для первого модуля.
-                CAT$    #ReadWriteCatRecord
-                .WORD   "CY,Cat.Seg
-                clr     R0
-                movb    R1,R0
-                mov     R4,R1
-                jsr     PC,ToStr
-                .BSTR   #LogSegStr
-                .BPRIN  R4
-
-                ; Получить адрес сегмента для второго модуля.
-                CAT$    #ReadWriteCatRecord
-                .WORD   "DY,Cat.Seg
-                clr     R0
-                movb    R1,R0
-                mov     R4,R1
-                jsr     PC,ToStr
-                .BSTR   #LogSegStr
-                .BPRIN  R4
+                ; Пересылка подпрограммы в оба модуля
+                MOV$G   NASEG.Current,#YCode,"CY,0,#YCodeEnd-YCode
+                MOV$G   NASEG.Current,#YCode,"DY,0,#YCodeEnd-YCode
 
                 ; Прочитать первое слово из второго модуля
                 clr     R0
                 mov     PC,R1
-;                CHW$G   0,"DY
-;                mov     R4,R1
-;                jsr     PC,ToStr
+                CHW$G   0,"DY
+                mov     R4,R1
+                jsr     PC,ToStr
                 .BSTR   #WordStr
-;                .BPRIN  R4
+                .BPRIN  R4
 
                 ; Выполняем обе подпрограммы
                 ;CAL$G   0,"CY

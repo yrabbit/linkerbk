@@ -1,9 +1,17 @@
 ;; vim: set expandtab ai textwidth=80:
+;;
+;; Специальные значение имени сегментов:
+NASEG.Dos=377          ; DOS режим
+NASEG.Current=376      ; текущий режим
+
                 ; Вызов подпрограммы
                 .MCALL  CAL$G
 
                 ; Чтение или обмен слова
                 .MCALL  CHW$G
+
+                ; Копирование или обмен массивов
+                .MCALL  MOV$G
 
                 ; Работа с каталогом
                 .MCALL  CAT$
@@ -44,4 +52,5 @@ Cat.Flags.ExName=200    ; Есть расширенное имя модуля.
 CreateModule=0
 ReadWriteCatRecord=10
 GetVersion=12                
+
 
