@@ -52,7 +52,6 @@ MACRO-11:
 строке.
 
 @* Примеры несложных программ.
-
 В самом простом случае программа состоит из одного файла, в котором не
 используются именованные секции, и, следовательно, нет глобальных символов, и
 нет явных межсекционных ссылок.
@@ -365,8 +364,8 @@ handleOneFile(FILE *fobj) {
 		if (fread(block_body, block_len + 1, 1, fobj) != 1) {
 			PRINTERR("IO error while read block: %s\n", config.objnames[cur_input]);
 			exit(EXIT_FAILURE);
-		}@|
-		/* Подсчет контрольной суммы */@|
+		}@/
+		/* Подсчет контрольной суммы */@/
 		crc = - obj_header.one - obj_header.zero - obj_header.len % 256
 			- obj_header.len / 256;
 		for (i = 0; i < block_len; ++i) {
@@ -838,7 +837,7 @@ simpleRefIsEmpty(void) {
 @ Добавляем новую ссылку в список
 @c
 static void
-addSimpleRef(RLD_Entry *ref) {@|
+addSimpleRef(RLD_Entry *ref) {@/
 	SimpleRefEntry *new_entry;
 	SimpleRefEntry *new_memory;
 	uint16_t new_index;
@@ -936,48 +935,48 @@ resolveGlobals(void) {
 	uint16_t ref, prev_ref, *dest_addr;
 	int global;
 
-	prev_ref = 0;@|
-	if (!simpleRefIsEmpty()) {@|
+	prev_ref = 0;@/
+	if (!simpleRefIsEmpty()) {@/
 		for (ref = SRefList.pool[0].link; ref != 0; prev_ref = ref, ref = SRefList.pool[ref].link) {
 			global = findGlobalSym(SRefList.pool[ref].name);
 			if (global == -1) {
 				continue;
 			}
 			if (SRefList.pool[ref].type ==
-			RLD_CMD_GLOBAL_RELOCATION) {@|
+			RLD_CMD_GLOBAL_RELOCATION) {@/
 				/* Прямая ссылка */
-				@<Разрешить прямую ссылку@>@;@|
+				@<Разрешить прямую ссылку@>@;@/
 				/* При удалении |ref| стоит вернуться на шаг назад */
 				SRefList.pool[prev_ref].link = delSimpleRef(ref);
 				ref = prev_ref;
 				continue;
 			}
 			if (SRefList.pool[ref].type ==
-			RLD_CMD_GLOBAL_DISPLACED_RELOCATION) {@|
+			RLD_CMD_GLOBAL_DISPLACED_RELOCATION) {@/
 				/* Косвенная ссылка */
-				@<Разрешить косвенную ссылку@>@;@|
+				@<Разрешить косвенную ссылку@>@;@/
 				SRefList.pool[prev_ref].link =
-					delSimpleRef(ref);@|
+					delSimpleRef(ref);@/
 				/* При удалении |ref| стоит вернуться на шаг назад */
 				ref = prev_ref;
 				continue;
 			}
 			if (SRefList.pool[ref].type ==
-			RLD_CMD_GLOBAL_ADDITIVE_RELOCATION) {@|
+			RLD_CMD_GLOBAL_ADDITIVE_RELOCATION) {@/
 				/* Прямая ссылка со смещением */
-				@<Разрешить смещенную прямую ссылку@>@;@|
+				@<Разрешить смещенную прямую ссылку@>@;@/
 				SRefList.pool[prev_ref].link =
-					delSimpleRef(ref);@|
+					delSimpleRef(ref);@/
 				/* При удалении |ref| стоит вернуться на шаг назад */
 				ref = prev_ref;
 				continue;
 			}
 			if (SRefList.pool[ref].type ==
-			RLD_CMD_GLOBAL_ADDITIVE_DISPLACED_RELOCATION) {@|
+			RLD_CMD_GLOBAL_ADDITIVE_DISPLACED_RELOCATION) {@/
 				/* Косвенная ссылка со смещением */
-				@<Разрешить смещенную косвенную ссылку@>@;@|
+				@<Разрешить смещенную косвенную ссылку@>@;@/
 				SRefList.pool[prev_ref].link =
-					delSimpleRef(ref);@|
+					delSimpleRef(ref);@/
 				/* При удалении |ref| стоит вернуться на шаг назад */
 				ref = prev_ref;
 				continue;
@@ -1044,7 +1043,7 @@ static void resolveLimit(void);
 @ Добавляем новую ссылку на предел в список
 @c
 static void
-addLimit(RLD_Entry *ref) {@|
+addLimit(RLD_Entry *ref) {@/
 	LimListEntry *new_entry;
 	LimListEntry *new_memory;
 
@@ -1431,7 +1430,7 @@ complexRefIsEmpty(void) {
 @ Добавляем новое сложное выражение в список
 @c
 static void
-addComplexExpr(RLD_Entry *ref) {@|
+addComplexExpr(RLD_Entry *ref) {@/
 	ComplexExprEntry *new_entry;
 	ComplexExprEntry *new_memory;
 	uint16_t new_index;
@@ -1527,31 +1526,31 @@ resolveComplex(void) {
 
 	prev = 0;
 	for (i = CExprList.pool[0].link; i != 0; prev = i, i =
-			CExprList.pool[i].link) {@|
-		entry = CExprList.pool + i;@|
+			CExprList.pool[i].link) {@/
+		entry = CExprList.pool + i;@/
 		/* Пытаемся разрешить все ссылки внутри выражения */
-		if (!resolveTerms(entry)) {@|
+		if (!resolveTerms(entry)) {@/
 			/* Удалось разрешить все ссылки */
-			value = calcTerms(entry);@|
+			value = calcTerms(entry);@/
 			/* В зависимости от типа записываем результат */
-			if (entry->result_type == CREL_OP_STORE_RESULT) {@|
+			if (entry->result_type == CREL_OP_STORE_RESULT) {@/
 				/* Прямое обращение */
 				dest_addr = (uint16_t*)(SectDir[entry->sect].text +
-					+ entry->disp);@|
-				*dest_addr = value;@|
-			} else {@|
+					+ entry->disp);@/
+				*dest_addr = value;@/
+			} else {@/
 				/* Косвенное обращение */
 				dest_addr = (uint16_t*)(SectDir[entry->sect].text +
-					+ entry->disp);@|
+					+ entry->disp);@/
 				*dest_addr = value - 2 - entry->disp;
 			}
 			CExprList.pool[prev].link = delComplexExpr(i);
-			i = prev;@|
-		}@|
-	}@|
+			i = prev;@/
+		}@/
+	}@/
 
-	return(!complexRefIsEmpty());@|
-}@|
+	return(!complexRefIsEmpty());@/
+}@/
 @ Попытка разрешить символы внутри одного выражения.
 @c 
 static int
@@ -1826,8 +1825,8 @@ static char argp_program_doc[] = "Link MACRO-11 object files";
 	не более NUM символов.
 \smallskip
 @<Глобальн...@>=
-static struct argp_option options[] = {@|
-	{ "output", 'o', "FILENAME", 0, "Output filename"},@|
+static struct argp_option options[] = {@/
+	{ "output", 'o', "FILENAME", 0, "Output filename"},@/
 	{ "verbose", 'v', NULL, 0, "Verbose output"},@!
 	{ "length", 'l', "LENGTH", 0, "Max overlay file name length"},@!
 	{ 0 }@/
@@ -1890,7 +1889,7 @@ parse_opt(int key, char *arg, struct argp_state *state) {
 @d ERR_CANTOPEN		2
 @d ERR_CANTCREATE	3
 @<Разобрать ком...@>=
-	argp_parse(&argp, argc, argv, 0, 0, &config);@|
+	argp_parse(&argp, argc, argv, 0, 0, &config);@/
 	/* Проверка параметров */
 	if (strlen(config.output_filename) == 0) {
 		PRINTERR("No output filename specified\n");
@@ -1917,7 +1916,6 @@ parse_opt(int key, char *arg, struct argp_state *state) {
   (fmt), ## a) : 0)
 #define PRINTERR(fmt, a...) fprintf(stderr, (fmt), ## a) 
 
-@** Макросы.
 @* Макросы для монитора БК11М.
 
 Файл lib/bk11m/bk11m.inc

@@ -1,7 +1,7 @@
 ;; vim: set expandtab ai textwidth=80:
 ;; Вывод строки
                 .MACRO  .BPRIN ADDR
-                .IF DIF R0 <ADDR>
+                .IF DIF R0 ADDR
                 mov     ADDR,R0
                 .ENDC
                 jsr     PC,@140160

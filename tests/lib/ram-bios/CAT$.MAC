@@ -19,7 +19,7 @@
 ;;                  SYS-режиме, код включения #2160)
 ;;              R2 --- количество записей в каталоге.
                 .MACRO  CAT$ NUMBER
-                .IF DIF R0 <NUMBER>
+                .IF DIF R0 NUMBER
                 mov     NUMBER,R0
                 JSR     R5,@#167521
                 .ENDC
