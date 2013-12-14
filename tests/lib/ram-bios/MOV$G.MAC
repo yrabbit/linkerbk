@@ -1,5 +1,5 @@
 ;; vim: set expandtab ai textwidth=80:
-;; РџРµСЂРµСЃС‹Р»Р°РµС‚СЃСЏ РёР· 0 РІ 1. РћС‚СЂРёС†Р°С‚РµР»СЊРЅР°СЏ РґР»РёРЅР° РѕР·РЅР°С‡Р°РµС‚ РѕР±РјРµРЅ.
+;; Пересылается из 0 в 1. Отрицательная длина означает обмен.
                 .MACRO  MOV$G NASEG0,ADRSME0,NASEG1,ADRSME1,LEN
                 .IF DIF ADRSME0 R0
                 mov     ADRSME0,R0

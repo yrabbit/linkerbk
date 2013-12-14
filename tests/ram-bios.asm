@@ -39,7 +39,7 @@ Start:          AFTER$MKDOS
                 clr     R2
                 mov     #"CY,Cat.Name(R1)
                 mov     #<YCodeEnd-YCode>/2+1,Cat.Len(R1)
-                mov     #<Cat.Flags.NoSplit ! Cat.Flags.Run ! Cat.Flags.Del>,Cat.Flags(R1)
+                mov     #<Cat.Flags.NoSplit!Cat.Flags.Run!Cat.Flags.Del>,Cat.Flags(R1)
                 CAT$    #CreateModule
                 ; Читаем смещение в сегменте добавленного модуля
                 CAT$    #ReadWriteCatRecord
@@ -55,7 +55,7 @@ Start:          AFTER$MKDOS
                 clr     R2
                 mov     #"DY,Cat.Name(R1)
                 mov     #<YCodeEnd-YCode>/2+1,Cat.Len(R1)
-                mov     #<Cat.Flags.NoSplit ! Cat.Flags.Run ! Cat.Flags.Del>,Cat.Flags(R1)
+                mov     #<Cat.Flags.NoSplit!Cat.Flags.Run!Cat.Flags.Del>,Cat.Flags(R1)
                 CAT$    #CreateModule
                 ; Читаем смещение в сегменте добавленного модуля
                 CAT$    #ReadWriteCatRecord
