@@ -3,7 +3,7 @@
                 .MCALL  .BINIT,.BEXIT
 
                 ; Драйвер экрана
-                .MCALL  .BTSET
+                .MCALL  .BTSET,.BPAL
                 .MCALL  .BSTR,.BPRIN
 
                 ; Драйвер клавиатуры
