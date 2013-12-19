@@ -1,0 +1,10 @@
+;; vim: set expandtab ai textwidth=80:
+;; Установка/чтение палитры
+                .MACRO  .BPAL PAL
+                .IF DIF R0 PAL
+                mov     PAL,R0
+                .ENDC
+                jsr     PC,@140142
+                .ENDM
+
+
