@@ -1847,6 +1847,7 @@ const char *argp_program_bug_address = "<yellowrabbit@@bk.ru>";
 
 @ @<Глобальн...@>=
 static char argp_program_doc[] = "Link MACRO-11 object files";
+static char args_doc[] = "file [...]";
 
 @ Распознаются следующие опции:
 \smallskip
@@ -1864,7 +1865,7 @@ static struct argp_option options[] = {@/
 	{ 0 }@/
 };
 static error_t parse_opt(int, char*, struct argp_state*);@!
-static struct argp argp = {options, parse_opt, NULL, argp_program_doc};
+static struct argp argp = {options, parse_opt, args_doc, argp_program_doc};
 
 @ Эта структура используется для получения результатов разбора параметров командной строки.
 @<Собственные...@>=

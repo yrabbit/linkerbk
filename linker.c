@@ -2,7 +2,7 @@
 #line 192 "linker.w"
 
 /*117:*/
-#line 1935 "linker.w"
+#line 1936 "linker.w"
 
 #include <string.h> 
 #include <stdlib.h> 
@@ -224,7 +224,7 @@ ComplexExprEntry*pool;
 }ComplexExpressionList;
 
 /*:88*//*113:*/
-#line 1870 "linker.w"
+#line 1871 "linker.w"
 
 typedef struct _Arguments{
 int verbosity;
@@ -345,9 +345,10 @@ static void fromRadix50(int,char*);
 #line 1848 "linker.w"
 
 static char argp_program_doc[]= "Link MACRO-11 object files";
+static char args_doc[]= "file [...]";
 
 /*:111*//*112:*/
-#line 1859 "linker.w"
+#line 1860 "linker.w"
 
 static struct argp_option options[]= {
 {"output",'o',"FILENAME",0,"Output filename"},
@@ -356,16 +357,16 @@ static struct argp_option options[]= {
 {0}
 };
 static error_t parse_opt(int,char*,struct argp_state*);
-static struct argp argp= {options,parse_opt,NULL,argp_program_doc};
+static struct argp argp= {options,parse_opt,args_doc,argp_program_doc};
 
 /*:112*//*114:*/
-#line 1881 "linker.w"
+#line 1882 "linker.w"
 
 static Arguments config= {0,{0},14,NULL,};
 
 
 /*:114*//*118:*/
-#line 1946 "linker.w"
+#line 1947 "linker.w"
 
 #define PRINTVERB(level, fmt, a...) (((config.verbosity) >= level) ? printf(\
   (fmt), ## a) : 0)
@@ -398,7 +399,7 @@ const char*objname;
 int i,j,not_resolved;
 
 /*116:*/
-#line 1923 "linker.w"
+#line 1924 "linker.w"
 
 argp_parse(&argp,argc,argv,0,0,&config);
 
@@ -1905,7 +1906,7 @@ name[3]= '\0';
 }
 
 /*:107*//*115:*/
-#line 1887 "linker.w"
+#line 1888 "linker.w"
 
 static error_t
 parse_opt(int key,char*arg,struct argp_state*state){
