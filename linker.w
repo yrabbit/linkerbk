@@ -1393,7 +1393,7 @@ static int NumCurSections;
 @ —писок сложных ссылок.  ажда€ ссылка содержит простой массив термов сложного
 выражени€. ћаксимальное количество термов в выражении ограничено согласно
 документации
-MACRO-11\footnote{$^1$}{AA-KX10A-TC\_PDP-11\_MACRO-11\_Reference\_Manual\_May88}.
+MACRO-11\footnote{$^5$}{AA-KX10A-TC\_PDP-11\_MACRO-11\_Reference\_Manual\_May88}.
 @d MAX_COMPLEX_TERMS 20
 @<—обственные типы данных...@>=
 typedef struct _ComplexTerm {
