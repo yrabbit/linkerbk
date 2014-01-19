@@ -2,5 +2,5 @@ Module:SIMLBL
   Ident: V00.10
 =Global Definitions:
 =Sections:
-. ABS., addr: 0x61ed10, len: 0, min addr: 37777777777, current start: 0
-      , addr: 0x62ed20, len: 1114, min addr: 1000, current start: 0
+. ABS., addr: 0x8006da000, len: 0, min addr: 37777777777, current start: 0
+      , addr: 0x8006eb000, len: 1114, min addr: 1000, current start: 0

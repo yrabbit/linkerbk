@@ -2,8 +2,11 @@
 ;; Подключаем 5-ю страницу с 40000 
 ;; 4-ю с 10000 и передаем управление
 ;; монитору БК0010
-                .MACRO  BACK$TO$MKDOS
+                .MACRO  BACK$TO$MKDOS RAM
                 .BPAGE  5,0
                 .BPAGE  MKDOS$PAGE,1
-                jmp     @#100000
+                .NARG   SYM
+                .IF EQ SYM
+                        jmp     @#100000
+                .ENDC
                 .ENDM

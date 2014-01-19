@@ -86,16 +86,18 @@ Start:          AFTER$MKDOS
                 CAL$G   0,"DY
 
                 ; Забираем результаты
-                MOV$G   "CY,#Pic-YCode,NASEG.Current,#50000,#PicSize/2
-                MOV$G   "DY,#Pic-YCode,NASEG.Current,#PicSize+50000,#PicSize/2
+                MOV$G   "CY,#Pic-YCode,NASEG.Current,#60000,#PicSize/2
+                MOV$G   "DY,#Pic-YCode,NASEG.Current,#PicSize+60000,#PicSize/2
 
                 ; Удаляем модули
                 mov     #"CY,R1
                 CAT$    #DeleteModule
                 mov     #"DY,R1
                 CAT$    #DeleteModule
-                
-                .BEXIT                  ; выход
+                .BTTIN
+
+                BACK$TO$MKDOS  RAM
+                EXIT$
 
 Module:         .BLKB   20              ; данные добавляемого модуля
 HelloStr:       .ASCIZ  /Ask RAM-BIOS.../

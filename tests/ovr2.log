@@ -5,7 +5,7 @@ Module:PART2
 =Global Definitions:
 SAYHI : SUBS  /40000
 =Sections:
-. ABS., addr: 0x61ed10, len: 0, min addr: 37777777777, current start: 0
-      , addr: 0x62ed20, len: 0, min addr: 37777777777, current start: 0
-MAIN  , addr: 0x63ed30, len: 1340, min addr: 1000, current start: 0
-SUBS  , addr: 0x64ed40, len: 40027, min addr: 40000, current start: 40000
+. ABS., addr: 0x8006da000, len: 0, min addr: 37777777777, current start: 0
+      , addr: 0x8006eb000, len: 0, min addr: 37777777777, current start: 0
+MAIN  , addr: 0x8006fc000, len: 1334, min addr: 1000, current start: 0
+SUBS  , addr: 0x80070d000, len: 40027, min addr: 40000, current start: 40000

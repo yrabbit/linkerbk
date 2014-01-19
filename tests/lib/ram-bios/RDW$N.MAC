@@ -1,0 +1,20 @@
+;; vim: set expandtab ai :
+;; Чтение одного слова
+;; R0 --- прочитанное слово.
+;; ADR --- адрес
+;; MODE$FLAGS --- режим + флаги (100000 -- ``любой'' режим или массив в основном
+;; ОЗУ/ПЗУ, 40000 -- устанавливать, если в этом режиме отсутствует ПЗУ ROM-BIOS)
+;; код режима 0 означает текущий ружим.
+                .MACRO  RDW$N ADR,MODE$FLAGS,?L
+                .NTYPE  $$$,ADR
+                .IF EQ $$$&70
+                MOV     ADR,L
+                .ENDC
+                .NTYPE  $$$,MODE$FLAGS
+                .IF EQ $$$&70
+                MOV     MODE$FLAGS,?L+2
+                .ENDC
+                JSR     R5,@#167524
+L:              .WORD   ADR, MODE$FLAGS
+                .ENDM
+

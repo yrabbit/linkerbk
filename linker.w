@@ -1995,6 +1995,8 @@ parse_opt(int key, char *arg, struct argp_state *state) {
 \listing{tests/lib/ram-bios/CAT$.MAC}
 Τΰιλ lib/ram-bios/CAL\$G.MAC
 \listing{tests/lib/ram-bios/CAL$G.MAC}
+Τΰιλ lib/ram-bios/EXIT\$.MAC
+\listing{tests/lib/ram-bios/EXIT$.MAC}
 
 @* Θνδεκρ.
 

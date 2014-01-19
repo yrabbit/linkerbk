@@ -8,5 +8,5 @@ SAYHI : SUBS  /40004
 =Sections:
 . ABS., addr: 0x8006da000, len: 0, min addr: 37777777777, current start: 0
       , addr: 0x8006eb000, len: 0, min addr: 37777777777, current start: 0
-MAIN  , addr: 0x8006fc000, len: 1230, min addr: 1000, current start: 0
+MAIN  , addr: 0x8006fc000, len: 1224, min addr: 1000, current start: 0
 SUBS  , addr: 0x80070d000, len: 40034, min addr: 40000, current start: 0
