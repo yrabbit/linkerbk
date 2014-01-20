@@ -23,6 +23,13 @@ DOS$=120020     ; системная ячейка, содержит адрес TOP.
                 ; устанавливается = TOP-10 (таким образом, WRK$ указывает
                 ; на ячейку с кодом текущего режима).
 
+                ; Переключение режима и вызов
+                ; Для переключения без передачи управления:
+                ; mov MODE,R0
+                ; jsr R5,@#ChWrk4
+                ChWrk4=<167734+4>
+                .MCALL  CH$WRK
+
                 ; Чтение или обмен слов R0
                 .MCALL  RDW$N,CHW$N 
 
@@ -76,5 +83,5 @@ CreateModule=0
 DeleteModule=2
 ReadWriteCatRecord=10
 GetVersion=12                
-
+GetLowAddrSeg=16
 
