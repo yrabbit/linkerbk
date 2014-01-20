@@ -5,8 +5,7 @@
                 .MACRO  BACK$TO$MKDOS RAM
                 .BPAGE  5,0
                 .BPAGE  MKDOS$PAGE,1
-                .NARG   SYM
-                .IF EQ SYM
+                .IF B RAM
                         jmp     @#100000
                 .ENDC
                 .ENDM
