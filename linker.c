@@ -692,7 +692,7 @@ free(LimitList.pool);
 /*:65*/
 #line 240 "linker.w"
 
-return(0);
+return(not_resolved);
 }
 
 /*:8*//*16:*/
