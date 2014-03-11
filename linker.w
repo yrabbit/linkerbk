@@ -580,7 +580,7 @@ handleGlobalSymbol(GSD_Entry *entry) {
 			PRINTERR("Global definition conflict: %s in %s"
 				" conflicts with %s.\n", name,
 				config.objnames[cur_input],
-				config.objnames[found_sym]);
+				config.objnames[GSymDef[found_sym].obj_file]);
 			exit(EXIT_FAILURE);
 		}
 		GSymDef[NumGlobalDefs].name[0] = entry->name[0];
