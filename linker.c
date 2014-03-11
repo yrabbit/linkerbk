@@ -977,7 +977,7 @@ int found,i;
 found= -1;
 for(i= 0;i<NumGlobalDefs;++i){
 if(name[0]==GSymDef[i].name[0]&&name[1]==GSymDef[i].name[1]){
-found= i;
+found= GSymDef[i].obj_file;
 break;
 }
 }
