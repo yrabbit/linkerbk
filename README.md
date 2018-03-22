@@ -11,8 +11,8 @@ Linkbk
 из файла linker.w.
 
 Это файл пропускается через tex, cweave и ctangle. 
-Я нашёл удобным использовать для этого маленькую TeX систему под названием [kerTeX][1].
+Я нашёл удобным использовать для этого маленькую TeX систему под названием [kerTeX].
 
-[1]:http://www.kergis.com/en/kertex.html
+[kerTeX]:http://www.kergis.com/en/kertex.html
 
 
