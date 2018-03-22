@@ -10,9 +10,10 @@ Linkbk
 Файл .c и .pdf добавлены для удобства --- система рассчитана на создание их
 из файла linker.w.
 
-Это файл пропускается через tex, cweave и ctangle. 
-Я нашёл удобным использовать для этого маленькую TeX систему под названием [kerTeX][1].
 
-[1]:http://www.kergis.com/en/kertex.html
+Это файл пропускается через tex, cweave и ctangle. 
+Я нашёл удобным использовать для этого маленькую TeX систему под названием [kerTeX].
+
+[kerTeX]:http://www.kergis.com/en/kertex.html
 
 
